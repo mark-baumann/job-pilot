@@ -19,8 +19,7 @@ import {
   Eye,
   EyeOff,
   Info,
-  Brain,
-  Cloud
+  Brain
 } from "lucide-react";
 import { saveAs } from "file-saver";
 
@@ -61,6 +60,21 @@ export default function ApplicationGenerator() {
   const [firmaInput, setFirmaInput] = useState("");
   const [adresseInput, setAdresseInput] = useState("");
   const [titleInput, setTitleInput] = useState("");
+  // Load persisted form inputs
+  useEffect(() => {
+    try {
+      const jd = localStorage.getItem("job-description");
+      const f = localStorage.getItem("firma");
+      const a = localStorage.getItem("adresse");
+      const t = localStorage.getItem("title");
+      const cl = localStorage.getItem("cover-letter");
+      if (jd) setJobDescription(jd);
+      if (f) setFirmaInput(f);
+      if (a) setAdresseInput(a);
+      if (t) setTitleInput(t);
+      if (cl) setCurrentCoverLetter(cl);
+    } catch {}
+  }, []);
 
   // Processing State
   const [isProcessing, setIsProcessing] = useState(false);
@@ -105,6 +119,15 @@ export default function ApplicationGenerator() {
   useEffect(() => {
     if (selectedModel) localStorage.setItem("openai-model", selectedModel);
   }, [selectedModel]);
+
+  // Persist form inputs & cover letter
+  useEffect(() => { localStorage.setItem("job-description", jobDescription); }, [jobDescription]);
+  useEffect(() => { localStorage.setItem("firma", firmaInput); }, [firmaInput]);
+  useEffect(() => { localStorage.setItem("adresse", adresseInput); }, [adresseInput]);
+  useEffect(() => { localStorage.setItem("title", titleInput); }, [titleInput]);
+  useEffect(() => { localStorage.setItem("cover-letter", currentCoverLetter); }, [currentCoverLetter]);
+
+  
 
   const baseApplication = `Sehr geehrte Damen und Herren,
  
@@ -237,6 +260,28 @@ Mit freundlichen Grüßen`;
     }
   };
 
+  const handleResetApplication = () => {
+    // Clear state
+    setJobDescription("");
+    setResumeFile(null);
+    setFirmaInput("");
+    setAdresseInput("");
+    setTitleInput("");
+    setCurrentCoverLetter("");
+    setAnalysisResult(null);
+    setProcessingSteps([]);
+    setSelectedStep(null);
+    setSelectedSkill(null);
+    setProgress(0);
+    // Clear persisted keys (keep API/SMTP settings)
+    localStorage.removeItem("job-description");
+    localStorage.removeItem("firma");
+    localStorage.removeItem("adresse");
+    localStorage.removeItem("title");
+    localStorage.removeItem("cover-letter");
+    toast({ title: "Neue Bewerbung", description: "Eingaben wurden zurückgesetzt." });
+  };
+
   const handleDocxDownload = async () => {
     if (!currentCoverLetter) {
       toast({ title: "Kein Anschreiben", description: "Bitte generieren Sie zuerst ein Anschreiben.", variant: "destructive" });
@@ -260,6 +305,58 @@ Mit freundlichen Grüßen`;
   };
 
   const [isPdfLoading, setIsPdfLoading] = useState(false);
+  // Email + SMTP state
+  const [emailTo, setEmailTo] = useState("");
+  const [smtpHost, setSmtpHost] = useState("");
+  const [smtpPort, setSmtpPort] = useState<number>(587);
+  const [smtpUser, setSmtpUser] = useState("");
+  const [smtpPass, setSmtpPass] = useState("");
+  const [smtpSecure, setSmtpSecure] = useState(false);
+  const [fromEmail, setFromEmail] = useState("");
+  const [sendDocx, setSendDocx] = useState(true);
+  const [sendPdf, setSendPdf] = useState(false);
+  const [isEmailSending, setIsEmailSending] = useState(false);
+  // Persist: SMTP + Email settings (load on mount)
+  useEffect(() => {
+    try {
+      const sEmailTo = localStorage.getItem("email-to");
+      const sHost = localStorage.getItem("smtp-host");
+      const sPort = localStorage.getItem("smtp-port");
+      const sUser = localStorage.getItem("smtp-user");
+      const sPass = localStorage.getItem("smtp-pass");
+      const sSecure = localStorage.getItem("smtp-secure");
+      const sFrom = localStorage.getItem("smtp-from");
+      const sSendDocx = localStorage.getItem("send-docx");
+      const sSendPdf = localStorage.getItem("send-pdf");
+
+      if (sEmailTo) setEmailTo(sEmailTo);
+      if (sHost) setSmtpHost(sHost);
+      if (sPort) setSmtpPort(parseInt(sPort, 10) || 587);
+      if (sUser) setSmtpUser(sUser);
+      if (sPass) setSmtpPass(sPass);
+      if (sSecure) setSmtpSecure(sSecure === "true");
+      if (sFrom) setFromEmail(sFrom);
+      if (sSendDocx) setSendDocx(sSendDocx === "true");
+      if (sSendPdf) setSendPdf(sSendPdf === "true");
+    } catch {}
+  }, []);
+
+  // Persist changes
+  useEffect(() => { localStorage.setItem("email-to", emailTo); }, [emailTo]);
+  useEffect(() => { localStorage.setItem("smtp-host", smtpHost); }, [smtpHost]);
+  useEffect(() => { localStorage.setItem("smtp-port", String(smtpPort)); }, [smtpPort]);
+  useEffect(() => { localStorage.setItem("smtp-user", smtpUser); }, [smtpUser]);
+  useEffect(() => { localStorage.setItem("smtp-pass", smtpPass); }, [smtpPass]);
+  useEffect(() => { localStorage.setItem("smtp-secure", String(smtpSecure)); }, [smtpSecure]);
+  useEffect(() => { localStorage.setItem("smtp-from", fromEmail); }, [fromEmail]);
+  useEffect(() => { localStorage.setItem("send-docx", String(sendDocx)); }, [sendDocx]);
+  useEffect(() => { localStorage.setItem("send-pdf", String(sendPdf)); }, [sendPdf]);
+
+  // Keep secure flag in sync with common ports (helps gegen TLS-Fehler)
+  useEffect(() => {
+    if (smtpPort === 465 && !smtpSecure) setSmtpSecure(true);
+    if (smtpPort === 587 && smtpSecure) setSmtpSecure(false);
+  }, [smtpPort]);
 
   const handlePdfDownload = async () => {
     if (!currentCoverLetter) {
@@ -291,6 +388,124 @@ Mit freundlichen Grüßen`;
       });
     } finally {
       setIsPdfLoading(false); // Ladebalken beenden
+    }
+  };
+
+  const blobToBase64 = async (blob: Blob): Promise<string> => {
+    const arrayBuffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  };
+
+  const escapeHtml = (s: string) =>
+    s
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  const handleSendEmail = async () => {
+    const greeting = (() => {
+      return "Sehr geehrte Damen und Herren,";
+    })();
+    const position = titleInput || "[Stellenbezeichnung]";
+    const emailBodyText = `${greeting}\n\n` +
+      `anbei sende ich Ihnen meine Bewerbungsunterlagen für die Position als ${position}.\n` +
+      `Im Anhang finden Sie mein Anschreiben sowie meinen Lebenslauf.\n\n` +
+      `Ich freue mich sehr über die Möglichkeit, mich Ihnen persönlich vorzustellen, und stehe für Rückfragen gerne zur Verfügung.\n\n` +
+      `Mit freundlichen Grüßen`;
+    if (!currentCoverLetter) {
+      toast({ title: "Kein Anschreiben", description: "Bitte generieren Sie zuerst ein Anschreiben.", variant: "destructive" });
+      return;
+    }
+    if (!emailTo) {
+      toast({ title: "Empfänger fehlt", description: "Bitte geben Sie die E-Mail-Adresse ein.", variant: "destructive" });
+      return;
+    }
+
+    setIsEmailSending(true);
+    try {
+      const attachments: Array<{ filename: string; contentType: string; base64: string }> = [];
+
+      let docxBlob: Blob | null = null;
+      if (sendDocx || sendPdf) {
+        const cloudConvertService = new CloudConvertService(cloudConvertApiKey || "dummy");
+        docxBlob = await cloudConvertService.generateDocxAsync(
+          currentCoverLetter,
+          firmaInput,
+          adresseInput,
+          titleInput
+        );
+      }
+
+      if (sendDocx && docxBlob) {
+        attachments.push({
+          filename: "Bewerbung.docx",
+          contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          base64: await blobToBase64(docxBlob),
+        });
+      }
+
+      if (sendPdf) {
+        if (!cloudConvertApiKey) {
+          toast({ title: "PDF nicht konfiguriert", description: "Bitte CloudConvert API-Schlüssel eintragen oder nur DOCX senden.", variant: "destructive" });
+        } else {
+          const cloudConvertService = new CloudConvertService(cloudConvertApiKey);
+          const pdfBlob = await cloudConvertService.convertDocxToPdf(
+            currentCoverLetter,
+            firmaInput,
+            adresseInput,
+            titleInput
+          );
+          attachments.push({
+            filename: "Bewerbung.pdf",
+            contentType: "application/pdf",
+            base64: await blobToBase64(pdfBlob),
+          });
+        }
+      }
+
+      const subject = titleInput ? `Bewerbung als ${titleInput}` : "Bewerbung";
+      const text = emailBodyText;
+      const html = emailBodyText
+        .split("\n\n")
+        .map((p) => `<p>${escapeHtml(p).replace(/\n/g, "<br/>")}</p>`) 
+        .join("");
+
+      const resp = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          smtp: {
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpSecure,
+            user: smtpUser,
+            pass: smtpPass,
+          },
+          mail: {
+            from: fromEmail || smtpUser || "no-reply@localhost",
+            to: emailTo,
+            subject,
+            text,
+            html,
+            attachments,
+          },
+        }),
+      });
+
+      if (!resp.ok) throw new Error(await resp.text());
+      const data = await resp.json();
+      if (!data.ok) throw new Error(data.error || "Unbekannter Fehler");
+      toast({ title: "E-Mail gesendet", description: `Nachricht an ${emailTo} versendet.` });
+    } catch (error) {
+      console.error("E-Mail Versand Fehler:", error);
+      toast({ title: "E-Mail Versand fehlgeschlagen", description: String(error), variant: "destructive" });
+    } finally {
+      setIsEmailSending(false);
     }
   };
 
@@ -648,7 +863,46 @@ Mit freundlichen Grüßen`;
               onTextChange={handleCoverLetterChange}
               onDownloadDocx={handleDocxDownload}
               onDownloadPdf={handlePdfDownload}
-              isPdfLoading={isPdfLoading} // <--- Prop weitergeben
+              isPdfLoading={isPdfLoading}
+              emailTo={emailTo}
+              onEmailToChange={setEmailTo}
+              smtpHost={smtpHost}
+              smtpPort={smtpPort}
+              smtpUser={smtpUser}
+              smtpPass={smtpPass}
+              smtpSecure={smtpSecure}
+              fromEmail={fromEmail}
+              onSmtpFieldChange={(field, value) => {
+                switch (field) {
+                  case "host":
+                    setSmtpHost(String(value));
+                    break;
+                  case "port":
+                    setSmtpPort(Number(value));
+                    break;
+                  case "user":
+                    setSmtpUser(String(value));
+                    break;
+                  case "pass":
+                    setSmtpPass(String(value));
+                    break;
+                  case "secure":
+                    setSmtpSecure(Boolean(value));
+                    break;
+                  case "fromEmail":
+                    setFromEmail(String(value));
+                    break;
+                }
+              }}
+              sendDocx={sendDocx}
+              sendPdf={sendPdf}
+              onSendOptionChange={(field, value) => {
+                if (field === "docx") setSendDocx(value);
+                if (field === "pdf") setSendPdf(value);
+              }}
+              onSendEmail={handleSendEmail}
+              isEmailSending={isEmailSending}
+              onReset={handleResetApplication}
             />
           )}
         </div>
@@ -656,3 +910,4 @@ Mit freundlichen Grüßen`;
     </div>
   );
 }
+
