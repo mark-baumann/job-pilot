@@ -313,7 +313,7 @@ Mit freundlichen Grüßen`;
         {/* Header */}
         <div className="text-center space-y-2 mb-2">
           <h1 className="text-4xl font-extrabold bg-gradient-to-r from-indigo-600 via-blue-600 to-sky-400 bg-clip-text text-transparent drop-shadow">
-            JobAgent
+            JobPilot
           </h1>
           <p className="text-lg text-black/80">
             Generiere individuelle Anschreiben basierend auf Stellenanzeigen
