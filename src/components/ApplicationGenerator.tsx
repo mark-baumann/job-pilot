@@ -307,6 +307,8 @@ Mit freundlichen Grüßen`;
   const [isPdfLoading, setIsPdfLoading] = useState(false);
   // Email + SMTP state
   const [emailTo, setEmailTo] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
   const [smtpHost, setSmtpHost] = useState("");
   const [smtpPort, setSmtpPort] = useState<number>(587);
   const [smtpUser, setSmtpUser] = useState("");
@@ -320,6 +322,8 @@ Mit freundlichen Grüßen`;
   useEffect(() => {
     try {
       const sEmailTo = localStorage.getItem("email-to");
+      const sEmailSubject = localStorage.getItem("email-subject");
+      const sEmailBody = localStorage.getItem("email-body");
       const sHost = localStorage.getItem("smtp-host");
       const sPort = localStorage.getItem("smtp-port");
       const sUser = localStorage.getItem("smtp-user");
@@ -330,6 +334,8 @@ Mit freundlichen Grüßen`;
       const sSendPdf = localStorage.getItem("send-pdf");
 
       if (sEmailTo) setEmailTo(sEmailTo);
+      if (sEmailSubject) setEmailSubject(sEmailSubject);
+      if (sEmailBody) setEmailBody(sEmailBody);
       if (sHost) setSmtpHost(sHost);
       if (sPort) setSmtpPort(parseInt(sPort, 10) || 587);
       if (sUser) setSmtpUser(sUser);
@@ -344,6 +350,8 @@ Mit freundlichen Grüßen`;
   // Persist changes
   useEffect(() => { localStorage.setItem("email-to", emailTo); }, [emailTo]);
   useEffect(() => { localStorage.setItem("smtp-host", smtpHost); }, [smtpHost]);
+  useEffect(() => { localStorage.setItem("email-subject", emailSubject); }, [emailSubject]);
+  useEffect(() => { localStorage.setItem("email-body", emailBody); }, [emailBody]);
   useEffect(() => { localStorage.setItem("smtp-port", String(smtpPort)); }, [smtpPort]);
   useEffect(() => { localStorage.setItem("smtp-user", smtpUser); }, [smtpUser]);
   useEffect(() => { localStorage.setItem("smtp-pass", smtpPass); }, [smtpPass]);
@@ -866,6 +874,10 @@ Mit freundlichen Grüßen`;
               isPdfLoading={isPdfLoading}
               emailTo={emailTo}
               onEmailToChange={setEmailTo}
+              emailSubject={emailSubject}
+              onEmailSubjectChange={setEmailSubject}
+              emailBody={emailBody}
+              onEmailBodyChange={setEmailBody}
               smtpHost={smtpHost}
               smtpPort={smtpPort}
               smtpUser={smtpUser}
@@ -910,4 +922,5 @@ Mit freundlichen Grüßen`;
     </div>
   );
 }
+
 

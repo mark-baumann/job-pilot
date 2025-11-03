@@ -18,6 +18,10 @@ interface CoverLetterEditorProps {
   isPdfLoading: boolean;
   emailTo: string;
   onEmailToChange: (val: string) => void;
+  emailSubject: string;
+  onEmailSubjectChange: (val: string) => void;
+  emailBody: string;
+  onEmailBodyChange: (val: string) => void;
   smtpHost: string;
   smtpPort: number;
   smtpUser: string;
@@ -41,6 +45,10 @@ export default function CoverLetterEditor({
   isPdfLoading,
   emailTo,
   onEmailToChange,
+  emailSubject,
+  onEmailSubjectChange,
+  emailBody,
+  onEmailBodyChange,
   smtpHost,
   smtpPort,
   smtpUser,
@@ -162,6 +170,28 @@ export default function CoverLetterEditor({
                 <Label htmlFor="send-pdf">PDF anhängen</Label>
               </div>
             </div>
+          </div>
+
+          <div className="space-y-2 mt-2">
+            <Label htmlFor="email-subject">Betreff</Label>
+            <Input
+              id="email-subject"
+              placeholder="Bewerbung als ..."
+              value={emailSubject}
+              onChange={(e) => onEmailSubjectChange(e.target.value)}
+              className="bg-white text-black placeholder:text-gray-500 border-blue-200"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email-body">E-Mail Text</Label>
+            <Textarea
+              id="email-body"
+              placeholder="Ihre Nachricht ..."
+              value={emailBody}
+              onChange={(e) => onEmailBodyChange(e.target.value)}
+              className="min-h-[120px] bg-white text-black placeholder:text-gray-500 border-blue-200"
+            />
           </div>
 
           <div className="flex items-center gap-2">
