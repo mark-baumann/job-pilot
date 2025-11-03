@@ -198,7 +198,7 @@ export default function CoverLetterEditor({
                     setIsSmtpVerifying(false);
                   }
                 }}
-                className="ml-2"
+                className="ml-2 bg-white text-black border border-blue-200 hover:bg-blue-50 hover:text-black"
               >
                 {isSmtpVerifying ? "Teste..." : "SMTP testen"}
               </Button>
@@ -221,7 +221,7 @@ export default function CoverLetterEditor({
               </div>
               <div className="space-y-1">
                 <Label htmlFor="smtp-secure">TLS/SSL (secure)</Label>
-                <div className="flex items-center gap-2 h-10 px-3 border rounded-md">
+                <div className="flex items-center gap-2 h-10 px-3 border rounded-md bg-white text-black border-blue-200">
                   <Switch id="smtp-secure" checked={smtpSecure} onCheckedChange={(v) => onSmtpFieldChange("secure", Boolean(v))} />
                   <span className="text-sm">465 = an, 587 = aus</span>
                 </div>
