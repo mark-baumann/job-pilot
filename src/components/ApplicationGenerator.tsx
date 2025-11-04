@@ -9,12 +9,12 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { 
-  Key, 
-  FileText, 
-  Upload, 
-  Sparkles, 
-  CheckCircle, 
-  AlertCircle, 
+  Key,
+  FileText,
+  Upload,
+  Sparkles,
+  CheckCircle,
+  AlertCircle,
   Loader2,
   Eye,
   EyeOff,
@@ -164,6 +164,19 @@ Mit freundlichen Grüßen`;
       } else {
         toast({ title: "Ungültiges Dateiformat", description: "Bitte laden Sie eine PDF-Datei hoch.", variant: "destructive" });
       }
+    }
+  };
+
+  const handleLoadDemoCv = async () => {
+    try {
+      const resp = await fetch('/lebenslauf.pdf');
+      if (!resp.ok) throw new Error('lebenslauf.pdf nicht gefunden');
+      const blob = await resp.blob();
+      const file = new File([blob], 'lebenslauf.pdf', { type: 'application/pdf' });
+      setResumeFile(file);
+      toast({ title: 'Demo-Lebenslauf geladen', description: 'lebenslauf.pdf wurde geladen.' });
+    } catch (e) {
+      toast({ title: 'Fehler', description: String(e), variant: 'destructive' });
     }
   };
 
@@ -360,6 +373,25 @@ Mit freundlichen Grüßen`;
   useEffect(() => { localStorage.setItem("send-docx", String(sendDocx)); }, [sendDocx]);
   useEffect(() => { localStorage.setItem("send-pdf", String(sendPdf)); }, [sendPdf]);
 
+  // Auto-prefill Betreff und E-Mail-Text; aktualisiert bei Titel-Änderung oder vorhandenem Anschreiben
+  useEffect(() => {
+    const position = titleInput || "[Stellenbezeichnung]";
+    const subjectDefault = titleInput ? `Bewerbung ${titleInput} - Mark Baumann` : "Bewerbung - Mark Baumann";
+    const bodyDefault = `Sehr geehrte Damen und Herren,\n\n` +
+      `anbei sende ich Ihnen mein Anschreiben fuer die Position als ${position}.\n` +
+      `Im Anhang finden Sie mein Anschreiben.\n\n` +
+      `Ich freue mich sehr ueber die Moeglichkeit, mich Ihnen persoenlich vorzustellen, und stehe fuer Rueckfragen gerne zur Verfuegung.\n\n` +
+      `Mit freundlichen Gruessen\n\nMark Baumann`;
+
+    // Fülle nur vor, wenn leer oder noch Platzhalter enthält
+    if (!emailSubject || emailSubject.trim() === "" || emailSubject.includes("[Stellenbezeichnung]")) {
+      setEmailSubject(subjectDefault);
+    }
+    if (!emailBody || emailBody.trim() === "" || emailBody.includes("[Stellenbezeichnung]")) {
+      setEmailBody(bodyDefault);
+    }
+  }, [titleInput, currentCoverLetter]);
+
   // Keep secure flag in sync with common ports (helps gegen TLS-Fehler)
   useEffect(() => {
     if (smtpPort === 465 && !smtpSecure) setSmtpSecure(true);
@@ -421,10 +453,10 @@ Mit freundlichen Grüßen`;
     })();
     const position = titleInput || "[Stellenbezeichnung]";
     const emailBodyText = `${greeting}\n\n` +
-      `anbei sende ich Ihnen meine Bewerbungsunterlagen für die Position als ${position}.\n` +
-      `Im Anhang finden Sie mein Anschreiben sowie meinen Lebenslauf.\n\n` +
-      `Ich freue mich sehr über die Möglichkeit, mich Ihnen persönlich vorzustellen, und stehe für Rückfragen gerne zur Verfügung.\n\n` +
-      `Mit freundlichen Grüßen`;
+      `anbei sende ich Ihnen mein Anschreiben fuer die Position als ${position}.\n` +
+      `Im Anhang finden Sie mein Anschreiben.\n\n` +
+      `Ich freue mich sehr ueber die Moeglichkeit, mich Ihnen persoenlich vorzustellen, und stehe fuer Rueckfragen gerne zur Verfuegung.\n\n` +
+      `Mit freundlichen Gruessen\n\nMark Baumann`;
     if (!currentCoverLetter) {
       toast({ title: "Kein Anschreiben", description: "Bitte generieren Sie zuerst ein Anschreiben.", variant: "destructive" });
       return;
@@ -476,11 +508,12 @@ Mit freundlichen Grüßen`;
         }
       }
 
-      const subject = titleInput ? `Bewerbung als ${titleInput}` : "Bewerbung";
-      const text = emailBodyText;
-      const html = emailBodyText
-        .split("\n\n")
-        .map((p) => `<p>${escapeHtml(p).replace(/\n/g, "<br/>")}</p>`) 
+      const defaultSubject = titleInput ? `Bewerbung ${titleInput} - Mark Baumann` : "Bewerbung - Mark Baumann";
+      const subject = (emailSubject && emailSubject.trim()) ? emailSubject.trim() : defaultSubject;
+      const text = (emailBody && emailBody.length > 0) ? emailBody : emailBodyText;
+      const html = text
+        .split(/\r?\n\r?\n/)
+        .map((p) => `<p>${escapeHtml(p).replace(/\r?\n/g, "<br/>")}</p>`)
         .join("");
 
       const resp = await fetch("/api/send-email", {
@@ -699,6 +732,11 @@ Mit freundlichen Grüßen`;
                     className="hidden"
                   />
                 </Label>
+              </div>
+              <div className="flex items-center justify-end">
+                <Button type="button" variant="outline" onClick={handleLoadDemoCv} className="bg-white text-black border-blue-200">
+                  Marks CV
+                </Button>
               </div>
               {resumeFile && (
                 <Badge variant="success" className="w-fit">
@@ -922,5 +960,6 @@ Mit freundlichen Grüßen`;
     </div>
   );
 }
+
 
 
