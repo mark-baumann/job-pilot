@@ -433,31 +433,6 @@ Mit freundlichen Grüßen`;
     }
   };
 
-  const handlePdfDownloadBeta = async () => {
-    try {
-      const { jsPDF } = await import('jspdf');
-      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-      const margin = 56; // 0.78in
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const maxWidth = pageWidth - margin * 2;
-      const lines = doc.splitTextToSize(currentCoverLetter || '', maxWidth);
-      doc.setFont('helvetica', '');
-      doc.setFontSize(12);
-      let y = margin;
-      const lineHeight = 16;
-      lines.forEach((line: string) => {
-        if (y > doc.internal.pageSize.getHeight() - margin) {
-          doc.addPage();
-          y = margin;
-        }
-        doc.text(line, margin, y);
-        y += lineHeight;
-      });
-      doc.save('Bewerbung-beta.pdf');
-    } catch (e) {
-      toast({ title: 'PDF (beta) fehlgeschlagen', description: String(e), variant: 'destructive' });
-    }
-  };
 
   const blobToBase64 = async (blob: Blob): Promise<string> => {
     const arrayBuffer = await blob.arrayBuffer();
