@@ -537,6 +537,7 @@ Mark Baumann`
         }
         if (cvBlob) {
           attachments.push({
+            filename: "Lebenslauf Mark Baumann.pdf",
             contentType: cvBlob.type,
             base64: await blobToBase64(cvBlob),
           });
