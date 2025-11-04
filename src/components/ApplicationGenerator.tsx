@@ -955,7 +955,6 @@ Mit freundlichen Grüßen`;
               onTextChange={handleCoverLetterChange}
               onDownloadDocx={handleDocxDownload}
               onDownloadPdf={handlePdfDownload}
-              onDownloadPdfBeta={handlePdfDownloadBeta}
               isPdfLoading={isPdfLoading}
               emailTo={emailTo}
               onEmailToChange={setEmailTo}

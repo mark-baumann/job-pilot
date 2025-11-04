@@ -15,7 +15,6 @@ interface CoverLetterEditorProps {
   onTextChange: (newText: string) => void;
   onDownloadDocx: () => void;
   onDownloadPdf: () => void;
-  onDownloadPdfBeta?: () => void;
   isPdfLoading: boolean;
   emailTo: string;
   onEmailToChange: (val: string) => void;
@@ -46,7 +45,6 @@ export default function CoverLetterEditor({
   onTextChange,
   onDownloadDocx,
   onDownloadPdf,
-  onDownloadPdfBeta,
   isPdfLoading,
   emailTo,
   onEmailToChange,
@@ -153,11 +151,7 @@ export default function CoverLetterEditor({
               </>
             )}
           </Button>
-          {onDownloadPdfBeta && (
-            <Button onClick={onDownloadPdfBeta} variant="outline" className="flex-1 text-black bg-white border border-blue-200">
-              <Download className="w-4 h-4 mr-2" /> PDF herunterladen (intern beta)
-            </Button>
-          )}
+          
         </div>
 
         <Separator className="my-4" />
