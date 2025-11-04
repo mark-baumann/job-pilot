@@ -15,6 +15,7 @@ interface CoverLetterEditorProps {
   onTextChange: (newText: string) => void;
   onDownloadDocx: () => void;
   onDownloadPdf: () => void;
+  onDownloadPdfBeta?: () => void;
   isPdfLoading: boolean;
   emailTo: string;
   onEmailToChange: (val: string) => void;
@@ -31,7 +32,10 @@ interface CoverLetterEditorProps {
   onSmtpFieldChange: (field: string, value: string | number | boolean) => void;
   sendDocx: boolean;
   sendPdf: boolean;
-  onSendOptionChange: (field: "docx" | "pdf", value: boolean) => void;
+  sendZeugnisse: boolean;
+  onSendOptionChange: (field: "docx" | "pdf" | "zeugnisse", value: boolean) => void;
+  onZeugnisseUpload: (file: File) => void;
+  onLoadDemoZeugnisse: () => void;
   onSendEmail: () => void;
   isEmailSending: boolean;
   onReset: () => void;
@@ -42,6 +46,7 @@ export default function CoverLetterEditor({
   onTextChange,
   onDownloadDocx,
   onDownloadPdf,
+  onDownloadPdfBeta,
   isPdfLoading,
   emailTo,
   onEmailToChange,
@@ -58,8 +63,12 @@ export default function CoverLetterEditor({
   onSmtpFieldChange,
   sendDocx,
   sendPdf,
+  sendZeugnisse,
   onSendOptionChange,
+  onZeugnisseUpload,
+  onLoadDemoZeugnisse,
   onSendEmail,
+
   isEmailSending,
   onReset,
 }: CoverLetterEditorProps) {
@@ -144,6 +153,11 @@ export default function CoverLetterEditor({
               </>
             )}
           </Button>
+          {onDownloadPdfBeta && (
+            <Button onClick={onDownloadPdfBeta} variant="outline" className="flex-1 text-black bg-white border border-blue-200">
+              <Download className="w-4 h-4 mr-2" /> PDF herunterladen (intern beta)
+            </Button>
+          )}
         </div>
 
         <Separator className="my-4" />
@@ -167,10 +181,28 @@ export default function CoverLetterEditor({
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="send-pdf" checked={sendPdf} onCheckedChange={(v) => onSendOptionChange("pdf", Boolean(v))} />
-                <Label htmlFor="send-pdf">PDF anhängen</Label>
+                <Label htmlFor="send-pdf">PDF anhängen</Label>              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="send-zeugnisse" checked={sendZeugnisse} onCheckedChange={(v) => onSendOptionChange("zeugnisse", Boolean(v))} />
+                <Label htmlFor="send-zeugnisse">Zeugnisse anhängen</Label>
               </div>
             </div>
           </div>
+
+          {sendZeugnisse && (
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <Label htmlFor="zeugnisse-upload">Zeugnisse (PDF)</Label>
+                <Input id="zeugnisse-upload" type="file" accept=".pdf" className="bg-white border-blue-200" onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onZeugnisseUpload(f);
+                }} />
+              </div>
+              <Button type="button" variant="outline" className="bg-white text-black border-blue-200" onClick={onLoadDemoZeugnisse}>
+                Marks Zeugnisse
+              </Button>
+            </div>
+          )}
 
           <div className="space-y-2 mt-2">
             <Label htmlFor="email-subject">Betreff</Label>
@@ -288,3 +320,5 @@ export default function CoverLetterEditor({
     </Card>
   );
 }
+
+

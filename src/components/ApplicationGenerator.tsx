@@ -330,6 +330,8 @@ Mit freundlichen Grüßen`;
   const [fromEmail, setFromEmail] = useState("");
   const [sendDocx, setSendDocx] = useState(true);
   const [sendPdf, setSendPdf] = useState(false);
+  const [sendZeugnisse, setSendZeugnisse] = useState(false);
+  const [zeugnisseFile, setZeugnisseFile] = useState<File | null>(null);
   const [isEmailSending, setIsEmailSending] = useState(false);
   // Persist: SMTP + Email settings (load on mount)
   useEffect(() => {
@@ -431,6 +433,32 @@ Mit freundlichen Grüßen`;
     }
   };
 
+  const handlePdfDownloadBeta = async () => {
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+      const margin = 56; // 0.78in
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const maxWidth = pageWidth - margin * 2;
+      const lines = doc.splitTextToSize(currentCoverLetter || '', maxWidth);
+      doc.setFont('helvetica', '');
+      doc.setFontSize(12);
+      let y = margin;
+      const lineHeight = 16;
+      lines.forEach((line: string) => {
+        if (y > doc.internal.pageSize.getHeight() - margin) {
+          doc.addPage();
+          y = margin;
+        }
+        doc.text(line, margin, y);
+        y += lineHeight;
+      });
+      doc.save('Bewerbung-beta.pdf');
+    } catch (e) {
+      toast({ title: 'PDF (beta) fehlgeschlagen', description: String(e), variant: 'destructive' });
+    }
+  };
+
   const blobToBase64 = async (blob: Blob): Promise<string> => {
     const arrayBuffer = await blob.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
@@ -489,7 +517,7 @@ Mit freundlichen Grüßen`;
         });
       }
 
-      if (sendPdf) {
+      if (sendPdf) {        // add Zeugnisse attachment if requested (handled after PDF)
         if (!cloudConvertApiKey) {
           toast({ title: "PDF nicht konfiguriert", description: "Bitte CloudConvert API-Schlüssel eintragen oder nur DOCX senden.", variant: "destructive" });
         } else {
@@ -506,6 +534,27 @@ Mit freundlichen Grüßen`;
             base64: await blobToBase64(pdfBlob),
           });
         }
+      }
+
+      if (sendZeugnisse) {
+        try {
+          let zBlob: Blob | null = null;
+          if (zeugnisseFile) {
+            zBlob = zeugnisseFile;
+          } else {
+            const resp = await fetch('/zeugnisse.pdf');
+            if (resp.ok) {
+              zBlob = await resp.blob();
+            }
+          }
+          if (zBlob) {
+            attachments.push({
+              filename: zeugnisseFile?.name || 'Marks_Zeugnisse.pdf',
+              contentType: 'application/pdf',
+              base64: await blobToBase64(zBlob),
+            });
+          }
+        } catch {}
       }
 
       const defaultSubject = titleInput ? `Bewerbung ${titleInput} - Mark Baumann` : "Bewerbung - Mark Baumann";
@@ -906,6 +955,7 @@ Mit freundlichen Grüßen`;
               onTextChange={handleCoverLetterChange}
               onDownloadDocx={handleDocxDownload}
               onDownloadPdf={handlePdfDownload}
+              onDownloadPdfBeta={handlePdfDownloadBeta}
               isPdfLoading={isPdfLoading}
               emailTo={emailTo}
               onEmailToChange={setEmailTo}
@@ -943,9 +993,24 @@ Mit freundlichen Grüßen`;
               }}
               sendDocx={sendDocx}
               sendPdf={sendPdf}
+              sendZeugnisse={sendZeugnisse}
               onSendOptionChange={(field, value) => {
                 if (field === "docx") setSendDocx(value);
                 if (field === "pdf") setSendPdf(value);
+                if (field === "zeugnisse") setSendZeugnisse(value);
+              }}
+              onZeugnisseUpload={(file) => setZeugnisseFile(file)}
+              onLoadDemoZeugnisse={async () => {
+                try {
+                  const resp = await fetch('/zeugnisse.pdf');
+                  if (!resp.ok) throw new Error('zeugnisse.pdf nicht gefunden');
+                  const blob = await resp.blob();
+                  const file = new File([blob], 'zeugnisse.pdf', { type: 'application/pdf' });
+                  setZeugnisseFile(file);
+                  toast({ title: 'Zeugnisse geladen', description: 'Demodatei zeugnisse.pdf geladen.' });
+                } catch (e) {
+                  toast({ title: 'Fehler', description: String(e), variant: 'destructive' });
+                }
               }}
               onSendEmail={handleSendEmail}
               isEmailSending={isEmailSending}
@@ -957,6 +1022,7 @@ Mit freundlichen Grüßen`;
     </div>
   );
 }
+
 
 
 
