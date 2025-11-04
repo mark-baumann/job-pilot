@@ -378,10 +378,10 @@ Mit freundlichen Grüßen`;
     const position = titleInput || "[Stellenbezeichnung]";
     const subjectDefault = titleInput ? `Bewerbung ${titleInput} - Mark Baumann` : "Bewerbung - Mark Baumann";
     const bodyDefault = `Sehr geehrte Damen und Herren,\n\n` +
-      `anbei sende ich Ihnen mein Anschreiben fuer die Position als ${position}.\n` +
+      `anbei sende ich Ihnen mein Anschreiben für die Position als ${position}.\n` +
       `Im Anhang finden Sie mein Anschreiben.\n\n` +
-      `Ich freue mich sehr ueber die Moeglichkeit, mich Ihnen persoenlich vorzustellen, und stehe fuer Rueckfragen gerne zur Verfuegung.\n\n` +
-      `Mit freundlichen Gruessen\n\nMark Baumann`;
+      `Ich freue mich sehr über die Möglichkeit, mich Ihnen persönlich vorzustellen, und stehe für Rückfragen gerne zur Verfügung.\n\n` +
+      `Mit freundlichen Grüßen\n\nMark Baumann`;
 
     // Fülle nur vor, wenn leer oder noch Platzhalter enthält
     if (!emailSubject || emailSubject.trim() === "" || emailSubject.includes("[Stellenbezeichnung]")) {
@@ -453,10 +453,10 @@ Mit freundlichen Grüßen`;
     })();
     const position = titleInput || "[Stellenbezeichnung]";
     const emailBodyText = `${greeting}\n\n` +
-      `anbei sende ich Ihnen mein Anschreiben fuer die Position als ${position}.\n` +
+      `anbei sende ich Ihnen mein Anschreiben für die Position als ${position}.\n` +
       `Im Anhang finden Sie mein Anschreiben.\n\n` +
-      `Ich freue mich sehr ueber die Moeglichkeit, mich Ihnen persoenlich vorzustellen, und stehe fuer Rueckfragen gerne zur Verfuegung.\n\n` +
-      `Mit freundlichen Gruessen\n\nMark Baumann`;
+      `Ich freue mich sehr über die Möglichkeit, mich Ihnen persönlich vorzustellen, und stehe für Rückfragen gerne zur Verfügung.\n\n` +
+      `Mit freundlichen Grüßen\n\nMark Baumann`;
     if (!currentCoverLetter) {
       toast({ title: "Kein Anschreiben", description: "Bitte generieren Sie zuerst ein Anschreiben.", variant: "destructive" });
       return;
