@@ -50,6 +50,10 @@ export default function ApplicationGenerator() {
   // API Configuration
   const [apiKey, setApiKey] = useState("");
   const [cloudConvertApiKey, setCloudConvertApiKey] = useState("");
+  const [cloudConvertApiKeys, setCloudConvertApiKeys] = useState<string[]>([]);
+  const [selectedCloudConvertKeyIndex, setSelectedCloudConvertKeyIndex] = useState<number>(-1);
+  const [showSelectedCloudConvertKey, setShowSelectedCloudConvertKey] = useState(false);
+  const [newCloudConvertKey, setNewCloudConvertKey] = useState("");
   const [selectedModel, setSelectedModel] = useState("gpt-4.1-2025-04-14");
   const [showApiKey, setShowApiKey] = useState(false);
   const [showCloudConvertApiKey, setShowCloudConvertApiKey] = useState(false);
@@ -101,9 +105,26 @@ export default function ApplicationGenerator() {
   useEffect(() => {
     const savedApiKey = localStorage.getItem("openai-api-key");
     const savedCloudConvertApiKey = localStorage.getItem("cloudconvert-api-key");
+    const savedCloudConvertApiKeys = localStorage.getItem("cloudconvert-api-keys");
     const savedModel = localStorage.getItem("openai-model");
     if (savedApiKey) setApiKey(savedApiKey);
-    if (savedCloudConvertApiKey) setCloudConvertApiKey(savedCloudConvertApiKey);
+    if (savedCloudConvertApiKeys) {
+      try {
+        const arr = JSON.parse(savedCloudConvertApiKeys) as string[];
+        if (Array.isArray(arr) && arr.length > 0) {
+          setCloudConvertApiKeys(arr);
+          const idxStr = localStorage.getItem("cloudconvert-api-key-selected-index");
+          const idx = idxStr ? parseInt(idxStr, 10) : 0;
+          const safeIdx = isNaN(idx) ? 0 : Math.min(Math.max(idx, 0), arr.length - 1);
+          setSelectedCloudConvertKeyIndex(safeIdx);
+          setCloudConvertApiKey(arr[safeIdx] || "");
+        }
+      } catch {}
+    } else if (savedCloudConvertApiKey) {
+      setCloudConvertApiKey(savedCloudConvertApiKey);
+      setCloudConvertApiKeys([savedCloudConvertApiKey]);
+      setSelectedCloudConvertKeyIndex(0);
+    }
     if (savedModel) setSelectedModel(savedModel);
   }, []);
 
@@ -115,6 +136,11 @@ export default function ApplicationGenerator() {
   useEffect(() => {
     if (cloudConvertApiKey) localStorage.setItem("cloudconvert-api-key", cloudConvertApiKey);
   }, [cloudConvertApiKey]);
+
+  useEffect(() => {
+    localStorage.setItem("cloudconvert-api-keys", JSON.stringify(cloudConvertApiKeys));
+    localStorage.setItem("cloudconvert-api-key-selected-index", String(selectedCloudConvertKeyIndex));
+  }, [cloudConvertApiKeys, selectedCloudConvertKeyIndex]);
 
   useEffect(() => {
     if (selectedModel) localStorage.setItem("openai-model", selectedModel);
@@ -633,24 +659,96 @@ Mit freundlichen Grüßen`;
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="cloudconvert-api-key">CloudConvert API-Schlüssel (für PDF-Export)</Label>
-              <div className="relative">
-                <Input
-                  id="cloudconvert-api-key"
-                  type={showCloudConvertApiKey ? "text" : "password"}
-                  placeholder="Bearer Token..."
-                  value={cloudConvertApiKey}
-                  onChange={(e) => setCloudConvertApiKey(e.target.value)}
-                  className="pr-10 bg-white border-primary/30 focus:border-primary/60 transition-colors"
-                />
+              <Label>CloudConvert API-Schlüssel (für PDF-Export)</Label>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={selectedCloudConvertKeyIndex >= 0 ? String(selectedCloudConvertKeyIndex) : ""}
+                  onValueChange={(val) => {
+                    const idx = parseInt(val, 10);
+                    setSelectedCloudConvertKeyIndex(idx);
+                    setCloudConvertApiKey(cloudConvertApiKeys[idx] || "");
+                    setShowSelectedCloudConvertKey(false);
+                  }}
+                >
+                  <SelectTrigger className="bg-white border-primary/30 focus:border-primary/60 transition-colors w-full">
+                    <SelectValue placeholder={cloudConvertApiKeys.length ? "Schlüssel wählen" : "Kein Schlüssel gespeichert"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cloudConvertApiKeys.length === 0 ? (
+                      <SelectItem value="-1" disabled>
+                        Kein Schlüssel vorhanden
+                      </SelectItem>
+                    ) : (
+                      cloudConvertApiKeys.map((k, i) => {
+                        const masked = k.length > 8 ? `•••• ${k.slice(-4)}` : "••••";
+                        return (
+                          <SelectItem key={i} value={String(i)}>
+                            {`Key ${i + 1} (${masked})`}
+                          </SelectItem>
+                        );
+                      })
+                    )}
+                  </SelectContent>
+                </Select>
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
                   type="button"
-                  onClick={() => setShowCloudConvertApiKey(!showCloudConvertApiKey)}
-                  className="absolute right-0 top-0 h-full px-3 hover:bg-primary/10"
+                  onClick={() => setShowSelectedCloudConvertKey(!showSelectedCloudConvertKey)}
+                  className="shrink-0 bg-white text-black border border-blue-200 hover:bg-blue-50 hover:text-black"
+                  disabled={selectedCloudConvertKeyIndex < 0}
                 >
-                  {showCloudConvertApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showSelectedCloudConvertKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  className="shrink-0 bg-white text-black border border-blue-200 hover:bg-blue-50 hover:text-black"
+                  onClick={() => {
+                    if (selectedCloudConvertKeyIndex >= 0) {
+                      const next = cloudConvertApiKeys.filter((_, i) => i !== selectedCloudConvertKeyIndex);
+                      setCloudConvertApiKeys(next);
+                      const newIdx = next.length ? 0 : -1;
+                      setSelectedCloudConvertKeyIndex(newIdx);
+                      setCloudConvertApiKey(newIdx >= 0 ? next[newIdx] : "");
+                      setShowSelectedCloudConvertKey(false);
+                    }
+                  }}
+                  disabled={selectedCloudConvertKeyIndex < 0}
+                >
+                  Entfernen
+                </Button>
+              </div>
+              {showSelectedCloudConvertKey && selectedCloudConvertKeyIndex >= 0 && (
+                <Input
+                  type="text"
+                  value={cloudConvertApiKeys[selectedCloudConvertKeyIndex]}
+                  readOnly
+                  className="bg-white border-primary/30"
+                />
+              )}
+              <div className="flex items-center gap-2 mt-2">
+                <Input
+                  placeholder="Neuen Schlüssel eingeben (Bearer …)"
+                  value={newCloudConvertKey}
+                  onChange={(e) => setNewCloudConvertKey(e.target.value)}
+                  className="bg-white border-primary/30"
+                />
+                <Button
+                  type="button"
+                  onClick={() => {
+                    const v = newCloudConvertKey.trim();
+                    if (!v) return;
+                    const next = [...cloudConvertApiKeys, v];
+                    setCloudConvertApiKeys(next);
+                    setSelectedCloudConvertKeyIndex(next.length - 1);
+                    setCloudConvertApiKey(v);
+                    setNewCloudConvertKey("");
+                    setShowSelectedCloudConvertKey(false);
+                  }}
+                >
+                  Hinzufügen
                 </Button>
               </div>
             </div>
