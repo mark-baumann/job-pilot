@@ -307,6 +307,8 @@ Mit freundlichen Grüßen`;
     setAdresseInput("");
     setTitleInput("");
     setCurrentCoverLetter("");
+    setEmailSubject("");
+    setEmailBody("");
     setAnalysisResult(null);
     setProcessingSteps([]);
     setSelectedStep(null);
@@ -318,6 +320,8 @@ Mit freundlichen Grüßen`;
     localStorage.removeItem("adresse");
     localStorage.removeItem("title");
     localStorage.removeItem("cover-letter");
+    localStorage.removeItem("email-subject");
+    localStorage.removeItem("email-body");
     toast({ title: "Neue Bewerbung", description: "Eingaben wurden zurückgesetzt." });
   };
 
@@ -354,9 +358,10 @@ Mit freundlichen Grüßen`;
   const [smtpPass, setSmtpPass] = useState("");
   const [smtpSecure, setSmtpSecure] = useState(false);
   const [fromEmail, setFromEmail] = useState("");
-  const [sendDocx, setSendDocx] = useState(true);
-  const [sendPdf, setSendPdf] = useState(false);
-  const [sendZeugnisse, setSendZeugnisse] = useState(false);
+  const [sendDocx, setSendDocx] = useState(false);
+  const [sendPdf, setSendPdf] = useState(true);
+  const [sendZeugnisse, setSendZeugnisse] = useState(true);
+  const [sendCv, setSendCv] = useState(true);
   const [zeugnisseFile, setZeugnisseFile] = useState<File | null>(null);
   const [isEmailSending, setIsEmailSending] = useState(false);
   // Persist: SMTP + Email settings (load on mount)
@@ -401,24 +406,48 @@ Mit freundlichen Grüßen`;
   useEffect(() => { localStorage.setItem("send-docx", String(sendDocx)); }, [sendDocx]);
   useEffect(() => { localStorage.setItem("send-pdf", String(sendPdf)); }, [sendPdf]);
 
+  const [emailTemplate, setEmailTemplate] = useState("");
+
+  useEffect(() => {
+    async function loadTemplate() {
+      try {
+        const response = await fetch('/templates/email-template.txt');
+        if (response.ok) {
+          setEmailTemplate(await response.text());
+        } else {
+          setEmailTemplate(
+`Sehr geehrte Damen und Herren,
+
+anbei sende ich Ihnen mein Anschreiben für die Position als {{position}}.
+Im Anhang finden Sie mein Anschreiben.
+
+Ich freue mich sehr über die Möglichkeit, mich Ihnen persönlich vorzustellen, und stehe für Rückfragen gerne zur Verfügung.
+
+Mit freundlichen Grüßen
+
+Mark Baumann`
+          );
+        }
+      } catch (e) {
+        console.error("Failed to load email template", e);
+      }
+    }
+    loadTemplate();
+  }, []);
+
   // Auto-prefill Betreff und E-Mail-Text; aktualisiert bei Titel-Änderung oder vorhandenem Anschreiben
   useEffect(() => {
+    if (!emailTemplate) return;
+
     const position = titleInput || "[Stellenbezeichnung]";
     const subjectDefault = titleInput ? `Bewerbung ${titleInput} - Mark Baumann` : "Bewerbung - Mark Baumann";
-    const bodyDefault = `Sehr geehrte Damen und Herren,\n\n` +
-      `anbei sende ich Ihnen mein Anschreiben für die Position als ${position}.\n` +
-      `Im Anhang finden Sie mein Anschreiben.\n\n` +
-      `Ich freue mich sehr über die Möglichkeit, mich Ihnen persönlich vorzustellen, und stehe für Rückfragen gerne zur Verfügung.\n\n` +
-      `Mit freundlichen Grüßen\n\nMark Baumann`;
+    
+    const bodyDefault = emailTemplate.replace(/{{position}}/g, position);
 
-    // Fülle nur vor, wenn leer oder noch Platzhalter enthält
-    if (!emailSubject || emailSubject.trim() === "" || emailSubject.includes("[Stellenbezeichnung]")) {
-      setEmailSubject(subjectDefault);
-    }
-    if (!emailBody || emailBody.trim() === "" || emailBody.includes("[Stellenbezeichnung]")) {
-      setEmailBody(bodyDefault);
-    }
-  }, [titleInput, currentCoverLetter]);
+    setEmailSubject(subjectDefault);
+
+    setEmailBody(bodyDefault);
+  }, [titleInput, emailTemplate]);
 
   // Keep secure flag in sync with common ports (helps gegen TLS-Fehler)
   useEffect(() => {
@@ -477,15 +506,6 @@ Mit freundlichen Grüßen`;
       .replace(/'/g, "&#039;");
 
   const handleSendEmail = async () => {
-    const greeting = (() => {
-      return "Sehr geehrte Damen und Herren,";
-    })();
-    const position = titleInput || "[Stellenbezeichnung]";
-    const emailBodyText = `${greeting}\n\n` +
-      `anbei sende ich Ihnen mein Anschreiben für die Position als ${position}.\n` +
-      `Im Anhang finden Sie mein Anschreiben.\n\n` +
-      `Ich freue mich sehr über die Möglichkeit, mich Ihnen persönlich vorzustellen, und stehe für Rückfragen gerne zur Verfügung.\n\n` +
-      `Mit freundlichen Grüßen\n\nMark Baumann`;
     if (!currentCoverLetter) {
       toast({ title: "Kein Anschreiben", description: "Bitte generieren Sie zuerst ein Anschreiben.", variant: "destructive" });
       return;
@@ -498,6 +518,30 @@ Mit freundlichen Grüßen`;
     setIsEmailSending(true);
     try {
       const attachments: Array<{ filename: string; contentType: string; base64: string }> = [];
+
+      if (sendCv) {
+        let cvBlob: Blob | null = null;
+        let cvName = "lebenslauf.pdf";
+        if (resumeFile) {
+          cvBlob = resumeFile;
+          cvName = resumeFile.name;
+        } else {
+          try {
+            const resp = await fetch('/lebenslauf.pdf');
+            if (resp.ok) {
+              cvBlob = await resp.blob();
+            }
+          } catch (e) {
+            console.error("Could not fetch fallback CV", e);
+          }
+        }
+        if (cvBlob) {
+          attachments.push({
+            contentType: cvBlob.type,
+            base64: await blobToBase64(cvBlob),
+          });
+        }
+      }
 
       let docxBlob: Blob | null = null;
       if (sendDocx || sendPdf) {
@@ -518,7 +562,7 @@ Mit freundlichen Grüßen`;
         });
       }
 
-      if (sendPdf) {        // add Zeugnisse attachment if requested (handled after PDF)
+      if (sendPdf) {
         if (!cloudConvertApiKey) {
           toast({ title: "PDF nicht konfiguriert", description: "Bitte CloudConvert API-Schlüssel eintragen oder nur DOCX senden.", variant: "destructive" });
         } else {
@@ -558,9 +602,10 @@ Mit freundlichen Grüßen`;
         } catch {}
       }
 
-      const defaultSubject = titleInput ? `Bewerbung ${titleInput} - Mark Baumann` : "Bewerbung - Mark Baumann";
-      const subject = (emailSubject && emailSubject.trim()) ? emailSubject.trim() : defaultSubject;
-      const text = (emailBody && emailBody.length > 0) ? emailBody : emailBodyText;
+      const subject = emailSubject || (titleInput ? `Bewerbung ${titleInput} - Mark Baumann` : "Bewerbung - Mark Baumann");
+      
+      const text = emailBody;
+
       const html = `<pre style="white-space:pre-wrap;margin:0">${escapeHtml(text)}</pre>`;
 
       const resp = await fetch("/api/send-email", {
@@ -1066,12 +1111,16 @@ Mit freundlichen Grüßen`;
               sendDocx={sendDocx}
               sendPdf={sendPdf}
               sendZeugnisse={sendZeugnisse}
+              sendCv={sendCv}
               onSendOptionChange={(field, value) => {
                 if (field === "docx") setSendDocx(value);
                 if (field === "pdf") setSendPdf(value);
                 if (field === "zeugnisse") setSendZeugnisse(value);
+                if (field === "cv") setSendCv(value);
               }}
+              onCvUploadClick={() => document.getElementById('resume-upload')?.click()}
               onZeugnisseUpload={(file) => setZeugnisseFile(file)}
+              zeugnisseFileName={zeugnisseFile?.name}
               onLoadDemoZeugnisse={async () => {
                 try {
                   const resp = await fetch('/zeugnisse.pdf');

@@ -32,8 +32,10 @@ interface CoverLetterEditorProps {
   sendDocx: boolean;
   sendPdf: boolean;
   sendZeugnisse: boolean;
-  onSendOptionChange: (field: "docx" | "pdf" | "zeugnisse", value: boolean) => void;
+  sendCv: boolean;
+  onSendOptionChange: (field: "docx" | "pdf" | "zeugnisse" | "cv", value: boolean) => void;
   onZeugnisseUpload: (file: File) => void;
+  zeugnisseFileName?: string;
   onLoadDemoZeugnisse: () => void;
   onSendEmail: () => void;
   isEmailSending: boolean;
@@ -62,8 +64,10 @@ export default function CoverLetterEditor({
   sendDocx,
   sendPdf,
   sendZeugnisse,
+  sendCv,
   onSendOptionChange,
   onZeugnisseUpload,
+  zeugnisseFileName,
   onLoadDemoZeugnisse,
   onSendEmail,
 
@@ -168,33 +172,41 @@ export default function CoverLetterEditor({
                 className="bg-white border-blue-200"
               />
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col items-start gap-2">
               <div className="flex items-center gap-2">
                 <Checkbox id="send-docx" checked={sendDocx} onCheckedChange={(v) => onSendOptionChange("docx", Boolean(v))} />
                 <Label htmlFor="send-docx">DOCX anhängen</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="send-pdf" checked={sendPdf} onCheckedChange={(v) => onSendOptionChange("pdf", Boolean(v))} />
-                <Label htmlFor="send-pdf">PDF anhängen</Label>              </div>
+                <Label htmlFor="send-pdf">PDF anhängen</Label>
+              </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="send-zeugnisse" checked={sendZeugnisse} onCheckedChange={(v) => onSendOptionChange("zeugnisse", Boolean(v))} />
                 <Label htmlFor="send-zeugnisse">Zeugnisse anhängen</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Checkbox id="send-cv" checked={sendCv} onCheckedChange={(v) => onSendOptionChange("cv", Boolean(v))} />
+                <Label htmlFor="send-cv">Lebenslauf anhängen</Label>
               </div>
             </div>
           </div>
 
           {sendZeugnisse && (
-            <div className="flex items-center gap-3">
-              <div className="flex-1">
-                <Label htmlFor="zeugnisse-upload">Zeugnisse (PDF)</Label>
-                <Input id="zeugnisse-upload" type="file" accept=".pdf" className="bg-white border-blue-200" onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) onZeugnisseUpload(f);
-                }} />
+            <div className="space-y-2">
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <Label htmlFor="zeugnisse-upload">Zeugnisse (PDF)</Label>
+                  <Input id="zeugnisse-upload" type="file" accept=".pdf" className="bg-white border-blue-200" onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) onZeugnisseUpload(f);
+                  }} />
+                </div>
+                <Button type="button" variant="outline" className="self-end bg-white text-black border-blue-200" onClick={onLoadDemoZeugnisse}>
+                  Marks Zeugnisse
+                </Button>
               </div>
-              <Button type="button" variant="outline" className="bg-white text-black border-blue-200" onClick={onLoadDemoZeugnisse}>
-                Marks Zeugnisse
-              </Button>
+              {zeugnisseFileName && <p className="text-sm text-muted-foreground mt-1">Ausgewählte Datei: {zeugnisseFileName}</p>}
             </div>
           )}
 
