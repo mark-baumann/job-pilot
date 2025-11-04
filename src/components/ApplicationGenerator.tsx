@@ -511,10 +511,7 @@ Mit freundlichen Grüßen`;
       const defaultSubject = titleInput ? `Bewerbung ${titleInput} - Mark Baumann` : "Bewerbung - Mark Baumann";
       const subject = (emailSubject && emailSubject.trim()) ? emailSubject.trim() : defaultSubject;
       const text = (emailBody && emailBody.length > 0) ? emailBody : emailBodyText;
-      const html = text
-        .split(/\r?\n\r?\n/)
-        .map((p) => `<p>${escapeHtml(p).replace(/\r?\n/g, "<br/>")}</p>`)
-        .join("");
+      const html = `<pre style="white-space:pre-wrap;margin:0">${escapeHtml(text)}</pre>`;
 
       const resp = await fetch("/api/send-email", {
         method: "POST",
