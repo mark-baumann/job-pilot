@@ -379,7 +379,6 @@ Mit freundlichen Grüßen`;
   const [isPdfLoading, setIsPdfLoading] = useState(false);
   // Email + SMTP state
   const [emailTo, setEmailTo] = useState("");
-  const [emailBcc, setEmailBcc] = useState("kontakt@markb.de");
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
   const [smtpHost, setSmtpHost] = useState("");
@@ -399,7 +398,7 @@ Mit freundlichen Grüßen`;
   useEffect(() => {
     try {
       const sEmailTo = localStorage.getItem("email-to");
-      const sEmailBcc = localStorage.getItem("email-bcc");
+
       const sEmailSubject = localStorage.getItem("email-subject");
       const sEmailBody = localStorage.getItem("email-body");
       const sHost = localStorage.getItem("smtp-host");
@@ -412,7 +411,7 @@ Mit freundlichen Grüßen`;
       const sSendPdf = localStorage.getItem("send-pdf");
 
       if (sEmailTo) setEmailTo(sEmailTo);
-      if (sEmailBcc) setEmailBcc(sEmailBcc);
+
       if (sEmailSubject) setEmailSubject(sEmailSubject);
       if (sEmailBody) setEmailBody(sEmailBody);
       if (sHost) setSmtpHost(sHost);
@@ -428,7 +427,7 @@ Mit freundlichen Grüßen`;
 
   // Persist changes
   useEffect(() => { localStorage.setItem("email-to", emailTo); }, [emailTo]);
-  useEffect(() => { localStorage.setItem("email-bcc", emailBcc); }, [emailBcc]);
+
   useEffect(() => { localStorage.setItem("smtp-host", smtpHost); }, [smtpHost]);
   useEffect(() => { localStorage.setItem("email-subject", emailSubject); }, [emailSubject]);
   useEffect(() => { localStorage.setItem("email-body", emailBody); }, [emailBody]);
@@ -672,7 +671,7 @@ Mark Baumann`
           mail: {
             from: fromEmail || smtpUser || "no-reply@localhost",
             to: emailTo,
-            bcc: emailBcc,
+
             subject,
             text,
             html,
