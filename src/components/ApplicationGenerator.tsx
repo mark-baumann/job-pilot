@@ -379,6 +379,7 @@ Mit freundlichen Grüßen`;
   const [isPdfLoading, setIsPdfLoading] = useState(false);
   // Email + SMTP state
   const [emailTo, setEmailTo] = useState("");
+  const [emailBcc, setEmailBcc] = useState("kontakt@markb.de");
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
   const [smtpHost, setSmtpHost] = useState("");
