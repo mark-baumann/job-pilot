@@ -41,15 +41,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }))
       : undefined;
 
-    const info = await transporter.sendMail({
+    const mailOptions: nodemailer.SendMailOptions = {
       from: mail.from,
       to: mail.to,
-      cc: mail.cc,
       subject: mail.subject,
       text: mail.text,
       html: mail.html,
       attachments,
-    });
+    };
+
+    if (mail.cc) {
+      mailOptions.cc = mail.cc;
+    }
+
+    const info = await transporter.sendMail(mailOptions);
 
     return res.status(200).json({ ok: true, id: info.messageId, accepted: info.accepted, rejected: info.rejected });
   } catch (err: any) {

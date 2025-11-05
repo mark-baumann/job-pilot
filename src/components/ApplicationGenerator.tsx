@@ -278,6 +278,34 @@ Mit freundlichen Grüßen`;
       setAnalysisResult(result);
       setCurrentCoverLetter(finalApplication);
 
+      // Trigger PDF generation in the background
+      const generatePdfInBackground = async () => {
+        if (!cloudConvertApiKey) {
+          console.log("No CloudConvert API key, skipping background PDF generation.");
+          return;
+        }
+        try {
+          const cloudConvertService = new CloudConvertService(cloudConvertApiKey);
+          const docx = await cloudConvertService.generateDocxAsync(
+            finalApplication,
+            firmaInput,
+            adresseInput,
+            titleInput
+          );
+          const pdf = await cloudConvertService.convertDocxBlobToPdf(docx);
+          setPdfBlob(pdf);
+          toast({ title: "PDF bereit", description: "Das PDF für den Anhang wurde im Hintergrund erstellt." });
+        } catch (error) {
+          console.error("Background PDF generation failed:", error);
+          toast({ 
+            title: "Fehler bei PDF-Generierung", 
+            description: `Das PDF konnte nicht im Hintergrund erstellt werden: ${error}`,
+            variant: "destructive"
+          });
+        }
+      };
+      generatePdfInBackground();
+
       toast({ title: "Anschreiben generiert", description: "Ihr individualisiertes Anschreiben wurde erfolgreich erstellt.", variant: "default" });
 
     } catch (error) {
@@ -309,6 +337,7 @@ Mit freundlichen Grüßen`;
     setCurrentCoverLetter("");
     setEmailSubject("");
     setEmailBody("");
+    setPdfBlob(null);
     setAnalysisResult(null);
     setProcessingSteps([]);
     setSelectedStep(null);
@@ -365,6 +394,7 @@ Mit freundlichen Grüßen`;
   const [sendCv, setSendCv] = useState(true);
   const [zeugnisseFile, setZeugnisseFile] = useState<File | null>(null);
   const [isEmailSending, setIsEmailSending] = useState(false);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   // Persist: SMTP + Email settings (load on mount)
   useEffect(() => {
     try {
@@ -471,16 +501,22 @@ Mark Baumann`
 
     setIsPdfLoading(true); // Ladebalken starten
     try {
-      const cloudConvertService = new CloudConvertService(cloudConvertApiKey);
-      const docxBlob = await cloudConvertService.generateDocxAsync(
-        currentCoverLetter,
-        firmaInput,
-        adresseInput,
-        titleInput
-      );
-      const pdfBlob = await cloudConvertService.convertDocxBlobToPdf(docxBlob);
-      saveAs(pdfBlob, "Bewerbung.pdf");
-      toast({ title: "PDF erstellt", description: "Die PDF-Datei wurde heruntergeladen." });
+      if (pdfBlob) {
+        saveAs(pdfBlob, "Bewerbung.pdf");
+        toast({ title: "PDF heruntergeladen", description: "Die PDF-Datei wurde heruntergeladen." });
+      } else {
+        const cloudConvertService = new CloudConvertService(cloudConvertApiKey);
+        const docxBlob = await cloudConvertService.generateDocxAsync(
+          currentCoverLetter,
+          firmaInput,
+          adresseInput,
+          titleInput
+        );
+        const pdf = await cloudConvertService.convertDocxBlobToPdf(docxBlob);
+        setPdfBlob(pdf); // Cache for next time
+        saveAs(pdf, "Bewerbung.pdf");
+        toast({ title: "PDF erstellt", description: "Die PDF-Datei wurde heruntergeladen." });
+      }
     } catch (error) {
       console.error("PDF Export Error:", error);
       toast({ 
@@ -568,16 +604,29 @@ Mark Baumann`
         });
       }
 
-      if (sendPdf && docxBlob) {
-        if (!cloudConvertApiKey) {
-          toast({ title: "PDF nicht konfiguriert", description: "Bitte CloudConvert API-Schlüssel eintragen oder nur DOCX senden.", variant: "destructive" });
-        } else {
-          const cloudConvertService = new CloudConvertService(cloudConvertApiKey);
-          const pdfBlob = await cloudConvertService.convertDocxBlobToPdf(docxBlob);
+      if (sendPdf) {
+        if (pdfBlob) {
           attachments.push({
             filename: "Bewerbung.pdf",
             contentType: "application/pdf",
             base64: await blobToBase64(pdfBlob),
+          });
+        } else if (!cloudConvertApiKey) {
+          toast({ title: "PDF nicht konfiguriert", description: "Bitte CloudConvert API-Schlüssel eintragen oder nur DOCX senden.", variant: "destructive" });
+        } else {
+          const cloudConvertService = new CloudConvertService(cloudConvertApiKey);
+          const docxBlob = await cloudConvertService.generateDocxAsync(
+            currentCoverLetter,
+            firmaInput,
+            adresseInput,
+            titleInput
+          );
+          const pdf = await cloudConvertService.convertDocxBlobToPdf(docxBlob);
+          setPdfBlob(pdf); // Cache for next time
+          attachments.push({
+            filename: "Bewerbung.pdf",
+            contentType: "application/pdf",
+            base64: await blobToBase64(pdf),
           });
         }
       }
