@@ -170,7 +170,7 @@ export default function CoverLetterEditor({
               <Label htmlFor="email-to">E-Mail an</Label>
               <Input
                 id="email-to"
-                placeholder="bewerbung@firma.de"
+                placeholder="empfaenger1@firma.de, empfaenger2@firma.de"
                 value={emailTo}
                 onChange={(e) => onEmailToChange(e.target.value)}
                 className="bg-white border-blue-200"
