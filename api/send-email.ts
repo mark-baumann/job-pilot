@@ -54,6 +54,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       mailOptions.cc = mail.cc;
     }
 
+    if (mail.bcc) {
+      mailOptions.bcc = mail.bcc;
+    }
+
     const info = await transporter.sendMail(mailOptions);
 
     return res.status(200).json({ ok: true, id: info.messageId, accepted: info.accepted, rejected: info.rejected });
