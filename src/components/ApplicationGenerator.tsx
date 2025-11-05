@@ -350,6 +350,7 @@ Mit freundlichen Grüßen`;
   const [isPdfLoading, setIsPdfLoading] = useState(false);
   // Email + SMTP state
   const [emailTo, setEmailTo] = useState("");
+  const [emailCc, setEmailCc] = useState("kontakt@markb.de");
   const [emailSubject, setEmailSubject] = useState("");
   const [emailBody, setEmailBody] = useState("");
   const [smtpHost, setSmtpHost] = useState("");
@@ -368,6 +369,7 @@ Mit freundlichen Grüßen`;
   useEffect(() => {
     try {
       const sEmailTo = localStorage.getItem("email-to");
+      const sEmailCc = localStorage.getItem("email-cc");
       const sEmailSubject = localStorage.getItem("email-subject");
       const sEmailBody = localStorage.getItem("email-body");
       const sHost = localStorage.getItem("smtp-host");
@@ -380,6 +382,7 @@ Mit freundlichen Grüßen`;
       const sSendPdf = localStorage.getItem("send-pdf");
 
       if (sEmailTo) setEmailTo(sEmailTo);
+      if (sEmailCc) setEmailCc(sEmailCc);
       if (sEmailSubject) setEmailSubject(sEmailSubject);
       if (sEmailBody) setEmailBody(sEmailBody);
       if (sHost) setSmtpHost(sHost);
@@ -395,6 +398,7 @@ Mit freundlichen Grüßen`;
 
   // Persist changes
   useEffect(() => { localStorage.setItem("email-to", emailTo); }, [emailTo]);
+  useEffect(() => { localStorage.setItem("email-cc", emailCc); }, [emailCc]);
   useEffect(() => { localStorage.setItem("smtp-host", smtpHost); }, [smtpHost]);
   useEffect(() => { localStorage.setItem("email-subject", emailSubject); }, [emailSubject]);
   useEffect(() => { localStorage.setItem("email-body", emailBody); }, [emailBody]);
@@ -468,12 +472,13 @@ Mark Baumann`
     setIsPdfLoading(true); // Ladebalken starten
     try {
       const cloudConvertService = new CloudConvertService(cloudConvertApiKey);
-      const pdfBlob = await cloudConvertService.convertDocxToPdf(
+      const docxBlob = await cloudConvertService.generateDocxAsync(
         currentCoverLetter,
         firmaInput,
         adresseInput,
         titleInput
       );
+      const pdfBlob = await cloudConvertService.convertDocxBlobToPdf(docxBlob);
       saveAs(pdfBlob, "Bewerbung.pdf");
       toast({ title: "PDF erstellt", description: "Die PDF-Datei wurde heruntergeladen." });
     } catch (error) {
@@ -563,17 +568,12 @@ Mark Baumann`
         });
       }
 
-      if (sendPdf) {
+      if (sendPdf && docxBlob) {
         if (!cloudConvertApiKey) {
           toast({ title: "PDF nicht konfiguriert", description: "Bitte CloudConvert API-Schlüssel eintragen oder nur DOCX senden.", variant: "destructive" });
         } else {
           const cloudConvertService = new CloudConvertService(cloudConvertApiKey);
-          const pdfBlob = await cloudConvertService.convertDocxToPdf(
-            currentCoverLetter,
-            firmaInput,
-            adresseInput,
-            titleInput
-          );
+          const pdfBlob = await cloudConvertService.convertDocxBlobToPdf(docxBlob);
           attachments.push({
             filename: "Bewerbung.pdf",
             contentType: "application/pdf",
@@ -623,6 +623,7 @@ Mark Baumann`
           mail: {
             from: fromEmail || smtpUser || "no-reply@localhost",
             to: emailTo,
+            cc: emailCc,
             subject,
             text,
             html,
@@ -1077,6 +1078,8 @@ Mark Baumann`
               isPdfLoading={isPdfLoading}
               emailTo={emailTo}
               onEmailToChange={setEmailTo}
+              emailCc={emailCc}
+              onEmailCcChange={setEmailCc}
               emailSubject={emailSubject}
               onEmailSubjectChange={setEmailSubject}
               emailBody={emailBody}

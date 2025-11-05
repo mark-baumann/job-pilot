@@ -196,6 +196,20 @@ export class CloudConvertService {
     return await this.downloadPdf(completedJob);
   }
 
+  async convertDocxBlobToPdf(docxBlob: Blob): Promise<Blob> {
+    // Conversion Job erstellen
+    const jobData = await this.createConversionJob();
+    
+    // Datei hochladen
+    await this.uploadFile(jobData, docxBlob);
+    
+    // Auf Fertigstellung warten
+    const completedJob = await this.waitForCompletion(jobData.data.id);
+    
+    // PDF herunterladen
+    return await this.downloadPdf(completedJob);
+  }
+
   generateDocx(
     applicationText: string,
     firma: string,

@@ -18,6 +18,8 @@ interface CoverLetterEditorProps {
   isPdfLoading: boolean;
   emailTo: string;
   onEmailToChange: (val: string) => void;
+  emailCc: string;
+  onEmailCcChange: (val: string) => void;
   emailSubject: string;
   onEmailSubjectChange: (val: string) => void;
   emailBody: string;
@@ -50,6 +52,8 @@ export default function CoverLetterEditor({
   isPdfLoading,
   emailTo,
   onEmailToChange,
+  emailCc,
+  onEmailCcChange,
   emailSubject,
   onEmailSubjectChange,
   emailBody,
@@ -169,6 +173,16 @@ export default function CoverLetterEditor({
                 placeholder="bewerbung@firma.de"
                 value={emailTo}
                 onChange={(e) => onEmailToChange(e.target.value)}
+                className="bg-white border-blue-200"
+              />
+            </div>
+            <div className="flex-1 space-y-1">
+              <Label htmlFor="email-cc">CC</Label>
+              <Input
+                id="email-cc"
+                placeholder="cc@firma.de"
+                value={emailCc}
+                onChange={(e) => onEmailCcChange(e.target.value)}
                 className="bg-white border-blue-200"
               />
             </div>

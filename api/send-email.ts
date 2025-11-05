@@ -44,6 +44,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const info = await transporter.sendMail({
       from: mail.from,
       to: mail.to,
+      cc: mail.cc,
       subject: mail.subject,
       text: mail.text,
       html: mail.html,
