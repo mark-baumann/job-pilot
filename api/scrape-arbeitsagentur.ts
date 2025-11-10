@@ -18,11 +18,40 @@ interface JobData {
   arbeitsort?: string;
 }
 
+// Simple in-memory cache
+let cachedJobs: JobData[] = [];
+let cacheTimestamp = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 async function scrapeArbeitsagenturJob(
   onProgress: (event: ScraperEvent) => void
 ) {
   let browser = null;
   try {
+    // Check cache
+    const now = Date.now();
+    if (cachedJobs.length > 0 && (now - cacheTimestamp) < CACHE_DURATION) {
+      onProgress({
+        type: "step",
+        step: 1,
+        message: `Cache gefunden! ${cachedJobs.length} Jobs geladen.`,
+      });
+
+      // Send all cached jobs
+      for (const job of cachedJobs) {
+        onProgress({
+          type: "data",
+          data: job,
+        });
+      }
+
+      onProgress({
+        type: "complete",
+        message: "Jobs aus Cache geladen!",
+      });
+      return;
+    }
+
     const executablePath = await chromium.executablePath();
     if (typeof executablePath !== "string") {
       throw new Error(
@@ -77,7 +106,7 @@ async function scrapeArbeitsagenturJob(
       console.log("Cookie-Dialog nicht gefunden oder bereits geschlossen");
     }
 
-    // Schritt 3: Jobs laden und anzeigen
+    // Schritt 3: Jobs laden
     onProgress({
       type: "step",
       step: 3,
@@ -99,13 +128,14 @@ async function scrapeArbeitsagenturJob(
       });
 
       // Schritt 4: Alle Jobs durchgehen und Daten extrahieren
-      const maxJobs = Math.min(jobElements.length, 5); // Limit auf 5 Jobs
+      const totalJobs = jobElements.length;
+      cachedJobs = []; // Reset cache
 
-      for (let i = 0; i < maxJobs; i++) {
+      for (let i = 0; i < totalJobs; i++) {
         onProgress({
           type: "step",
           step: 4,
-          message: `Job ${i + 1}/${maxJobs} wird geöffnet...`,
+          message: `Job ${i + 1}/${totalJobs} wird geöffnet...`,
         });
 
         const jobElement = jobElements[i];
@@ -117,8 +147,11 @@ async function scrapeArbeitsagenturJob(
           .innerText()
           .catch(() => "Titel nicht verfügbar");
 
-        // Entferne "1. Ergebnis", "2. Ergebnis" etc. aus dem Titel
-        jobTitle = jobTitle.replace(/^\d+\.\s*Ergebnis\s*/, "").trim();
+        // Entferne "1. Ergebnis", "2. Ergebnis" etc. und Doppelpunkte
+        jobTitle = jobTitle
+          .replace(/^\d+\.\s*Ergebnis\s*/, "")
+          .replace(/^:\s*/, "")
+          .trim();
 
         if (jobLink) {
           const absoluteLink = new URL(jobLink, targetUrl).toString();
@@ -133,7 +166,7 @@ async function scrapeArbeitsagenturJob(
           }
 
           // Warte kurz, damit Seite vollständig geladen ist
-          await page.waitForTimeout(1500);
+          await page.waitForTimeout(800);
 
           let jobDescription = "";
           let firma = "";
@@ -180,6 +213,11 @@ async function scrapeArbeitsagenturJob(
               firma = await firmaElement
                 .innerText({ timeout: 3000 })
                 .catch(() => "");
+              // Entferne "Arbeitgeber:" Präfix
+              firma = firma
+                .replace(/^Arbeitgeber:\s*/, "")
+                .replace(/^:\s*/, "")
+                .trim();
             }
           } catch (e) {
             console.log("Firma nicht mit XPath gefunden");
@@ -197,6 +235,8 @@ async function scrapeArbeitsagenturJob(
               arbeitsort = await arbeitsortElement
                 .innerText({ timeout: 3000 })
                 .catch(() => "");
+              // Entferne führende Doppelpunkte
+              arbeitsort = arbeitsort.replace(/^:\s*/, "").trim();
             }
           } catch (e) {
             console.log("Arbeitsort nicht mit XPath gefunden");
@@ -205,11 +245,13 @@ async function scrapeArbeitsagenturJob(
           // Sende die Jobdaten
           const jobData: JobData = {
             title: jobTitle,
-            description: jobDescription.trim().substring(0, 1000),
+            description: jobDescription.trim(),
             link: absoluteLink,
             firma: firma.trim(),
             arbeitsort: arbeitsort.trim(),
           };
+
+          cachedJobs.push(jobData);
 
           onProgress({
             type: "data",
@@ -219,10 +261,13 @@ async function scrapeArbeitsagenturJob(
           onProgress({
             type: "step",
             step: 4,
-            message: `✅ Job ${i + 1} extrahiert: "${jobTitle}"`,
+            message: `✅ Job ${i + 1}/${totalJobs} extrahiert`,
           });
         }
       }
+
+      // Update cache timestamp
+      cacheTimestamp = Date.now();
     } catch (e) {
       console.error("Fehler beim Scrapen der Jobs:", e);
     }
@@ -230,7 +275,7 @@ async function scrapeArbeitsagenturJob(
     // Abschluss
     onProgress({
       type: "complete",
-      message: "Scraping abgeschlossen!",
+      message: `Scraping abgeschlossen! ${cachedJobs.length} Jobs gefunden.`,
     });
 
     return {

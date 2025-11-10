@@ -202,7 +202,7 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
                   {jobs.map((job, index) => (
                     <TableRow
                       key={index}
-                      className="hover:bg-blue-50 transition-colors"
+                      className="hover:bg-blue-50 transition-colors align-top"
                     >
                       <TableCell className="font-semibold text-gray-800 max-w-xs">
                         {job.title}
@@ -213,9 +213,9 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
                       <TableCell className="text-gray-600 text-sm max-w-xs truncate">
                         {job.arbeitsort || "-"}
                       </TableCell>
-                      <TableCell className="text-gray-600 text-sm max-w-lg truncate">
+                      <TableCell className="text-gray-600 text-sm max-w-2xl whitespace-pre-wrap">
                         {job.description
-                          ? job.description.substring(0, 100) + "..."
+                          ? job.description.substring(0, 300)
                           : "-"}
                       </TableCell>
                       <TableCell className="space-x-2">
