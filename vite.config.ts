@@ -164,6 +164,39 @@ export default defineConfig({
           }
         });
 
+        // SSE endpoint for Arbeitsagentur scraping with live updates
+        server.middlewares.use("/api/scrape-arbeitsagentur", async (req, res) => {
+          if (req.method !== "GET") {
+            res.statusCode = 405;
+            res.end("Method Not Allowed");
+            return;
+          }
+
+          // Set SSE headers
+          res.setHeader("Content-Type", "text/event-stream");
+          res.setHeader("Cache-Control", "no-cache");
+          res.setHeader("Connection", "keep-alive");
+          res.setHeader("Access-Control-Allow-Origin", "*");
+
+          try {
+            const { scrapeArbeitsagenturJob } = await import("./api/run-playwright.ts");
+
+            await scrapeArbeitsagenturJob((event: any) => {
+              res.write(`data: ${JSON.stringify(event)}\n\n`);
+            });
+            res.end();
+          } catch (error: any) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            res.write(
+              `data: ${JSON.stringify({
+                type: "error",
+                error: errorMessage,
+              })}\n\n`
+            );
+            res.end();
+          }
+        });
+
         server.middlewares.use("/api/run-playwright", async (req, res) => {
           if (req.method !== "GET") {
             res.statusCode = 405;
@@ -186,7 +219,7 @@ export default defineConfig({
             
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify({ message: stdout || stderr }));
-          } catch (error) {
+          } catch (error: any) {
             res.statusCode = 500;
             res.setHeader("Content-Type", "application/json");
             res.end(JSON.stringify({ message: error.message }));

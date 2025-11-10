@@ -30,6 +30,7 @@ import { ResumeAnalysisService, ResumeAnalysis } from "../services/resumeAnalysi
 
 // Components
 import CoverLetterEditor from "./CoverLetterEditor";
+import { PlaywrightRunner } from "./PlaywrightRunner";
 
 import { Job } from "@/types";
 
@@ -748,6 +749,9 @@ Mark Baumann`
             Generiere individuelle Anschreiben basierend auf Stellenanzeigen
           </p>
         </div>
+
+        {/* Job Scraper */}
+        <PlaywrightRunner />
 
         {/* API Configuration */}
         <Card className="w-full bg-white shadow-xl border border-blue-200 rounded-2xl text-black">
