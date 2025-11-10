@@ -7,9 +7,13 @@ export default async function handler(
 ) {
   let browser = null;
   try {
+    const executablePath = await chromium.executablePath();
+    if (typeof executablePath !== 'string') {
+        throw new Error(`Invalid executablePath, expected string but got ${typeof executablePath}`);
+    }
     browser = await playwrightChromium.launch({
       args: chromium.args,
-      executablePath: await chromium.executablePath(),
+      executablePath: executablePath,
       headless: chromium.headless,
     });
 
@@ -22,10 +26,17 @@ export default async function handler(
 
     // Handle cookie consent
     try {
-        await page.getByTestId("bahf-cookie-disclaimer-btn-alle").click({ timeout: 3000 });
+        const acceptButton = page.getByTestId("bahf-cookie-disclaimer-btn-alle");
+        await acceptButton.waitFor({ state: 'visible', timeout: 10000 });
+        await acceptButton.click();
+        // Wait for the modal to disappear
+        await page.locator('#bahf-cookie-disclaimer-modal').waitFor({ state: 'hidden', timeout: 5000 });
+        console.log("Cookie consent handled.");
     } catch (e) {
         console.log("Cookie consent button not found or already handled.");
     }
+    
+    await page.waitForTimeout(500); // wait for page to settle
 
     // Wait for navigation and get the heading
     const heading = page.getByRole("heading", { name: "Jobsuche", exact: true });
