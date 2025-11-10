@@ -1,4 +1,5 @@
 import playwright from "playwright-aws-lambda";
+import chromium from "chrome-aws-lambda";
 import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
@@ -7,7 +8,11 @@ export default async function handler(
 ) {
   let browser = null;
   try {
-    browser = await playwright.launchChromium({ headless: true });
+    browser = await playwright.launchChromium({
+      headless: true,
+      executablePath: await chromium.executablePath,
+    });
+
     const context = await browser.newContext();
     const page = await context.newPage();
 
