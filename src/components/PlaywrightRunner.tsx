@@ -191,12 +191,12 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
             {loading ? (
               <>
                 <Loader2 className="mr-3 h-6 w-6 animate-spin" />
-                Scraping läuft... ({jobs.length}/25)
+                Scraping läuft... ({jobs.length} Jobs)
               </>
             ) : (
               <>
                 <Loader2 className="mr-3 h-6 w-6" style={{ visibility: 'hidden' }} />
-                ▶ Jobs laden
+                {jobs.length > 0 ? `▶ Aktualisieren (${jobs.length} Jobs)` : '▶ Jobs laden'}
               </>
             )}
           </Button>

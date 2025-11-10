@@ -186,17 +186,19 @@ async function scrapeArbeitsagenturJob(
       }
 
       // Jetzt gehe durch alle gesammelten Links und extrahiere Daten
+      let newJobsCount = 0; // Zähler für neue (nicht gecachte) Jobs
       for (let i = 0; i < jobLinks.length; i++) {
         const { link: absoluteLink, title: jobTitle } = jobLinks[i];
 
         // Berechne die globale Job-Nummer basierend auf bereits geCachten Jobs
         const alreadyInCache = cachedJobs.some((j) => j.link === absoluteLink);
-        const globalJobNumber = alreadyInCache ? cachedJobs.findIndex((j) => j.link === absoluteLink) + 1 : cachedJobs.length + 1;
+        newJobsCount = alreadyInCache ? newJobsCount : newJobsCount + 1;
+        const globalJobNumber = cachedJobs.length + newJobsCount;
 
         onProgress({
           type: "step",
           step: 4,
-          message: `Job ${globalJobNumber}/${totalJobs + cachedJobs.length} wird geöffnet...`,
+          message: `Job ${globalJobNumber}/25 wird geöffnet...`,
         });
 
         try {
@@ -329,7 +331,7 @@ async function scrapeArbeitsagenturJob(
         onProgress({
           type: "step",
           step: 5,
-          message: `✅ Job ${globalJobNumber}/${totalJobs + cachedJobs.length} extrahiert`,
+          message: `✅ Job ${globalJobNumber}/25 extrahiert`,
         });
       }
 
