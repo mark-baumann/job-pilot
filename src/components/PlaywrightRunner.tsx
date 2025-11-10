@@ -351,8 +351,8 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
                             </button>
                           )}
                           {expandedDescriptions[job.link] && job.description && (
-                            <div className="mt-2 p-2 bg-white border border-blue-200 rounded text-xs text-gray-800 max-h-48 overflow-y-auto">
-                              {job.description}
+                            <div className="mt-2 p-3 bg-white border border-blue-200 rounded text-sm text-gray-800 max-h-48 overflow-y-auto">
+                              <p className="whitespace-pre-wrap">{job.description}</p>
                             </div>
                           )}
                         </TableCell>
@@ -425,7 +425,7 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
                     {/* Full Description (if expanded) */}
                     {expandedDescriptions[job.link] && job.description && (
                       <div className="text-sm text-gray-800 bg-blue-50 p-3 rounded-lg border border-blue-200 max-h-48 overflow-y-auto">
-                        {job.description}
+                        <p className="whitespace-pre-wrap">{job.description}</p>
                       </div>
                     )}
 
