@@ -1,17 +1,39 @@
-import { exec } from "child_process";
-import { promisify } from "util";
+import playwright from "playwright-aws-lambda";
+import { NextApiRequest, NextApiResponse } from "next";
 
-const execAsync = promisify(exec);
-
-export default async function handler(req, res) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
+  let browser = null;
   try {
-    const { stdout, stderr } = await execAsync("npm run test:e2e");
-    if (stderr) {
-      res.status(500).json({ message: stderr });
-      return;
-    }
-    res.status(200).json({ message: stdout });
+    browser = await playwright.launchChromium({ headless: true });
+    const context = await browser.newContext();
+    const page = await context.newPage();
+
+    await page.goto(
+      "https://www.arbeitsagentur.de/jobsuche/suche?berufsfeld=Softwareentwicklung%20und%20Programmierung&angebotsart=1&wo=85256%20Vierkirchen,%20Oberbayern&umkreis=25"
+    );
+
+    // Handle cookie consent
+    await page.getByTestId("bahf-cookie-disclaimer-btn-alle").click();
+
+    // Wait for navigation and get the heading
+    const heading = page.getByRole("heading", { name: "Jobsuche", exact: true });
+    await heading.waitFor({ state: "visible" });
+
+    const screenshot = await page.screenshot({ encoding: "base64" });
+
+    res.status(200).json({
+      message: "Playwright script executed successfully.",
+      screenshot: `data:image/png;base64,${screenshot}`,
+    });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(error);
+    res.status(500).json({ message: `An error occurred: ${error.message}` });
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
   }
 }
