@@ -46,6 +46,8 @@ interface AnalysisResult {
   finalApplication: string;
 }
 
+import { PlaywrightRunner } from "./PlaywrightRunner";
+
 export default function ApplicationGenerator() {
   // API Configuration
   const [apiKey, setApiKey] = useState("");
@@ -1116,6 +1118,18 @@ Mark Baumann`
                </CardContent>
             </Card>
           )}
+
+          <Card className="w-full bg-white shadow-lg border border-blue-200 rounded-2xl text-black">
+            <CardHeader>
+              <CardTitle>Playwright Test</CardTitle>
+              <CardDescription>
+                Führen Sie den Playwright-Test für die Jobsuche auf der Arbeitsagentur-Website aus.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PlaywrightRunner />
+            </CardContent>
+          </Card>
 
           {/* Editable Cover Letter */}
           {currentCoverLetter && (

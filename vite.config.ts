@@ -163,6 +163,35 @@ export default defineConfig({
             res.end(JSON.stringify({ ok: false, error: message }));
           }
         });
+
+        server.middlewares.use("/api/run-playwright", async (req, res) => {
+          if (req.method !== "GET") {
+            res.statusCode = 405;
+            res.end("Method Not Allowed");
+            return;
+          }
+          try {
+            const { exec } = await import("child_process");
+            const { promisify } = await import("util");
+            const execAsync = promisify(exec);
+
+            const { stdout, stderr } = await execAsync("npm run test:e2e");
+            
+            if (stderr && !stdout) {
+              res.statusCode = 500;
+              res.setHeader("Content-Type", "application/json");
+              res.end(JSON.stringify({ message: stderr }));
+              return;
+            }
+            
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ message: stdout || stderr }));
+          } catch (error) {
+            res.statusCode = 500;
+            res.setHeader("Content-Type", "application/json");
+            res.end(JSON.stringify({ message: error.message }));
+          }
+        });
       },
     },
   ],
