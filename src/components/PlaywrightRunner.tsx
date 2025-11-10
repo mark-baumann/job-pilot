@@ -305,9 +305,12 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
                         </TableCell>
                         <TableCell className="py-4">
                           <div className="flex flex-row gap-2 flex-wrap">
-                            <Button onClick={() => handleJobSelect(job)} className="px-3 py-1 border border-black text-black bg-white">Übernehmen</Button>
-                            <a href={job.link} target="_blank" rel="noreferrer" className="px-3 py-1 border border-black text-black bg-white inline-flex items-center">Link</a>
-                            
+                            <Button onClick={() => handleJobSelect(job)} className="px-3 py-1 rounded-md inline-flex items-center justify-center text-sm font-semibold h-8 bg-green-600 hover:bg-green-700 text-white border border-green-700">
+                              Übernehmen
+                            </Button>
+                            <a href={job.link} target="_blank" rel="noreferrer" className="px-3 py-1 rounded-md inline-flex items-center justify-center text-sm font-semibold h-8 bg-red-600 hover:bg-red-700 text-white border border-red-700">
+                              Link
+                            </a>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -334,9 +337,8 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
                     </button>
                   )}
                   <div className="mt-3 flex gap-2">
-                    <Button onClick={() => handleJobSelect(job)} className="px-3 py-1 border border-black text-black bg-white">Übernehmen</Button>
-                    <a href={job.link} target="_blank" rel="noreferrer" className="px-3 py-1 border border-black text-black bg-white inline-flex items-center">Link</a>
-                    
+                    <Button onClick={() => handleJobSelect(job)} className="px-3 py-1 rounded-md inline-flex items-center justify-center text-sm font-semibold h-8 bg-green-600 hover:bg-green-700 text-white border border-green-700">Übernehmen</Button>
+                    <a href={job.link} target="_blank" rel="noreferrer" className="px-3 py-1 rounded-md inline-flex items-center justify-center text-sm font-semibold h-8 bg-red-600 hover:bg-red-700 text-white border border-red-700">Link</a>
                   </div>
                 </CardContent>
               </Card>
