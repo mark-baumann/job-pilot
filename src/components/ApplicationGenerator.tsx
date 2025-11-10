@@ -31,6 +31,9 @@ import { ResumeAnalysisService, ResumeAnalysis } from "../services/resumeAnalysi
 // Components
 import CoverLetterEditor from "./CoverLetterEditor";
 
+import { Job } from "@/types";
+
+
 interface ProcessingStep {
   id: string;
   title: string;
@@ -46,9 +49,11 @@ interface AnalysisResult {
   finalApplication: string;
 }
 
-import { PlaywrightRunner } from "./PlaywrightRunner";
+interface ApplicationGeneratorProps {
+  selectedJob: Job | null;
+}
 
-export default function ApplicationGenerator() {
+export default function ApplicationGenerator({ selectedJob }: ApplicationGeneratorProps) {
   // API Configuration
   const [apiKey, setApiKey] = useState("");
   const [cloudConvertApiKey, setCloudConvertApiKey] = useState("");
@@ -66,6 +71,28 @@ export default function ApplicationGenerator() {
   const [firmaInput, setFirmaInput] = useState("");
   const [adresseInput, setAdresseInput] = useState("");
   const [titleInput, setTitleInput] = useState("");
+
+  useEffect(() => {
+    if (selectedJob) {
+      setTitleInput(selectedJob.title);
+      setFirmaInput(selectedJob.company || "");
+      // Fetch job description
+      if (selectedJob.link) {
+        setJobDescription("Loading job description...");
+        fetch(`/api/get-job-details?url=${encodeURIComponent(selectedJob.link)}`)
+          .then(res => res.json())
+          .then(data => {
+            if (data.description) {
+              setJobDescription(data.description);
+            } else {
+              setJobDescription("Could not load job description.");
+            }
+          })
+          .catch(() => setJobDescription("Could not load job description."));
+      }
+    }
+  }, [selectedJob]);
+
   // Load persisted form inputs
   useEffect(() => {
     try {
@@ -82,6 +109,7 @@ export default function ApplicationGenerator() {
     } catch {}
   }, []);
 
+  // ... (rest of the component)
   // Processing State
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingSteps, setProcessingSteps] = useState<ProcessingStep[]>([]);
@@ -1119,17 +1147,7 @@ Mark Baumann`
             </Card>
           )}
 
-          <Card className="w-full bg-white shadow-lg border border-blue-200 rounded-2xl text-black">
-            <CardHeader>
-              <CardTitle>Playwright Test</CardTitle>
-              <CardDescription>
-                Führen Sie den Playwright-Test für die Jobsuche auf der Arbeitsagentur-Website aus.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PlaywrightRunner />
-            </CardContent>
-          </Card>
+
 
           {/* Editable Cover Letter */}
           {currentCoverLetter && (
