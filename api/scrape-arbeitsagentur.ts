@@ -3,11 +3,12 @@ import chromium from "@sparticuz/chromium";
 import { chromium as playwrightChromium } from "playwright-core";
 
 interface ScraperEvent {
-  type: "step" | "data" | "error" | "complete";
+  type: "step" | "data" | "error" | "complete" | "screenshot";
   step?: number;
   message?: string;
   data?: any;
   error?: string;
+  image?: string;
 }
 
 interface JobData {
@@ -83,6 +84,16 @@ async function scrapeArbeitsagenturJob(
       console.warn("Timeout beim Laden der Seite, versuche weiterzumachen...");
     }
 
+    // Screenshot der Suchergebnisse
+    let screenshot1 = await page.screenshot({ path: undefined }).catch(() => null);
+    if (screenshot1) {
+      const base64 = Buffer.from(screenshot1).toString('base64');
+      onProgress({
+        type: "screenshot",
+        image: `data:image/png;base64,${base64}`,
+      });
+    }
+
     // Schritt 2: Cookie-Dialog wegklicken
     onProgress({
       type: "step",
@@ -106,6 +117,16 @@ async function scrapeArbeitsagenturJob(
       console.log("Cookie-Dialog nicht gefunden oder bereits geschlossen");
     }
 
+    // Screenshot nach Cookie-Dialog
+    let screenshot2 = await page.screenshot({ path: undefined }).catch(() => null);
+    if (screenshot2) {
+      const base64 = Buffer.from(screenshot2).toString('base64');
+      onProgress({
+        type: "screenshot",
+        image: `data:image/png;base64,${base64}`,
+      });
+    }
+
     // Schritt 3: Jobs laden
     onProgress({
       type: "step",
@@ -126,6 +147,16 @@ async function scrapeArbeitsagenturJob(
         step: 3,
         message: `${jobElements.length} Jobs gefunden!`,
       });
+
+      // Screenshot der Jobliste
+      let screenshot3 = await page.screenshot({ path: undefined }).catch(() => null);
+      if (screenshot3) {
+        const base64 = Buffer.from(screenshot3).toString('base64');
+        onProgress({
+          type: "screenshot",
+          image: `data:image/png;base64,${base64}`,
+        });
+      }
 
       // Schritt 4: Alle Jobs durchgehen und Daten extrahieren
       const totalJobs = jobElements.length;
@@ -279,6 +310,16 @@ async function scrapeArbeitsagenturJob(
           type: "data",
           data: jobData,
         });
+
+        // Screenshot der Job-Detail-Seite
+        let jobScreenshot = await page.screenshot({ path: undefined }).catch(() => null);
+        if (jobScreenshot) {
+          const base64 = Buffer.from(jobScreenshot).toString('base64');
+          onProgress({
+            type: "screenshot",
+            image: `data:image/png;base64,${base64}`,
+          });
+        }
 
         onProgress({
           type: "step",

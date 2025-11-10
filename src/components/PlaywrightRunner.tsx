@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
-import { useState } from "react";
-import { AlertCircle, CheckCircle2, Loader2, ExternalLink, Check } from "lucide-react";
+import { useState, useEffect } from "react";
+import { AlertCircle, CheckCircle2, Loader2, ExternalLink, Check, Image as ImageIcon } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -20,11 +20,12 @@ interface Job {
 }
 
 interface ScraperEvent {
-  type: "step" | "data" | "error" | "complete";
+  type: "step" | "data" | "error" | "complete" | "screenshot";
   step?: number;
   message?: string;
   data?: Job;
   error?: string;
+  image?: string;
 }
 
 interface ProgressItem {
@@ -42,13 +43,33 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
   const [message, setMessage] = useState("");
   const [progress, setProgress] = useState<ProgressItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [screenshots, setScreenshots] = useState<string[]>([]);
+
+  // Load jobs from localStorage on mount
+  useEffect(() => {
+    const cachedJobs = localStorage.getItem("scraped_jobs");
+    if (cachedJobs) {
+      try {
+        setJobs(JSON.parse(cachedJobs));
+      } catch (e) {
+        console.log("Cache laden fehlgeschlagen");
+      }
+    }
+  }, []);
+
+  // Save jobs to localStorage whenever they change
+  useEffect(() => {
+    if (jobs.length > 0) {
+      localStorage.setItem("scraped_jobs", JSON.stringify(jobs));
+    }
+  }, [jobs]);
 
   const scrapeJobs = async () => {
     setLoading(true);
-    setJobs([]);
     setMessage("🔍 Starte Scraping...");
     setProgress([]);
     setError(null);
+    setScreenshots([]);
 
     try {
       const eventSource = new EventSource("/api/scrape-arbeitsagentur");
@@ -66,7 +87,20 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
 
           case "data":
             if (scraperEvent.data) {
-              setJobs((prev) => [...prev, scraperEvent.data!]);
+              setJobs((prev) => {
+                // Duplikate vermeiden - prüfe ob Job bereits vorhanden ist
+                const exists = prev.some((j) => j.link === scraperEvent.data!.link);
+                if (!exists) {
+                  return [...prev, scraperEvent.data!];
+                }
+                return prev;
+              });
+            }
+            break;
+
+          case "screenshot":
+            if (scraperEvent.image) {
+              setScreenshots((prev) => [...prev, scraperEvent.image!]);
             }
             break;
 
@@ -106,12 +140,12 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
 
   return (
     <div className="w-full space-y-4">
-      <Card className="w-full bg-white shadow-lg border border-blue-200 rounded-2xl">
+      <Card className="w-full bg-gradient-to-br from-blue-50 to-indigo-50 shadow-xl border border-blue-300 rounded-2xl">
         <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-lg">
+          <CardTitle className="flex items-center gap-2 text-lg text-blue-900">
             🔍 Jobs Scraper
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-blue-700">
             Scrape Jobs von der Arbeitsagentur-Website
           </CardDescription>
         </CardHeader>
@@ -120,7 +154,7 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
           <Button
             onClick={scrapeJobs}
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 text-base font-semibold"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 text-base font-semibold shadow-md transition-all"
           >
             {loading ? (
               <>
@@ -128,17 +162,17 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
                 Scraping läuft...
               </>
             ) : (
-              "▶ Scrape Jobs"
+              "▶ Jobs laden"
             )}
           </Button>
 
           {/* Status Message */}
           {message && (
             <div
-              className={`flex items-center gap-2 p-3 rounded-lg ${
+              className={`flex items-center gap-2 p-4 rounded-lg font-medium transition-all ${
                 error
-                  ? "bg-red-50 border border-red-200 text-red-700"
-                  : "bg-blue-50 border border-blue-200 text-blue-700"
+                  ? "bg-red-100 border border-red-400 text-red-800"
+                  : "bg-green-100 border border-green-400 text-green-800"
               }`}
             >
               {error ? (
@@ -146,23 +180,44 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
               ) : (
                 <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
               )}
-              <span className="text-sm">{message}</span>
+              <span>{message}</span>
             </div>
           )}
 
           {/* Progress Steps */}
           {progress.length > 0 && (
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2">
-              <p className="text-sm font-semibold text-gray-700">Fortschritt:</p>
+            <div className="bg-white border border-blue-200 p-4 rounded-lg space-y-2">
+              <p className="text-sm font-bold text-blue-900">Fortschritt:</p>
               {progress.map((item, index) => (
-                <div key={index} className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0" />
+                <div key={index} className="flex items-start gap-3 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
                   <span className="text-gray-700">
-                    <span className="font-semibold">Schritt {item.step}:</span>{" "}
+                    <span className="font-semibold text-blue-800">Schritt {item.step}:</span>{" "}
                     {item.message}
                   </span>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Screenshots */}
+          {screenshots.length > 0 && (
+            <div className="bg-white border border-green-200 p-4 rounded-lg">
+              <p className="text-sm font-bold text-green-900 mb-3 flex items-center gap-2">
+                <ImageIcon className="h-4 w-4" />
+                Screenshots ({screenshots.length})
+              </p>
+              <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
+                {screenshots.map((screenshot, index) => (
+                  <div key={index} className="border border-gray-300 rounded-lg overflow-hidden">
+                    <img
+                      src={screenshot}
+                      alt={`Screenshot ${index + 1}`}
+                      className="w-full h-auto object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </CardContent>
@@ -170,30 +225,30 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
 
       {/* Jobs Table */}
       {jobs.length > 0 && (
-        <Card className="w-full bg-white shadow-lg border border-green-200 rounded-2xl">
+        <Card className="w-full bg-gradient-to-br from-green-50 to-emerald-50 shadow-xl border border-green-300 rounded-2xl">
           <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-lg">
+            <CardTitle className="flex items-center gap-2 text-lg text-green-900">
               📋 Gefundene Jobs ({jobs.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border border-green-200">
               <Table>
                 <TableHeader>
-                  <TableRow className="border-b-2 border-blue-200">
-                    <TableHead className="font-bold text-gray-800 max-w-xs">
+                  <TableRow className="bg-green-200 hover:bg-green-200">
+                    <TableHead className="font-bold text-green-900 w-48">
                       Jobtitel
                     </TableHead>
-                    <TableHead className="font-bold text-gray-800">
+                    <TableHead className="font-bold text-green-900 w-40">
                       Firma
                     </TableHead>
-                    <TableHead className="font-bold text-gray-800">
+                    <TableHead className="font-bold text-green-900 w-36">
                       Ort
                     </TableHead>
-                    <TableHead className="font-bold text-gray-800">
+                    <TableHead className="font-bold text-green-900 w-80">
                       Beschreibung
                     </TableHead>
-                    <TableHead className="font-bold text-gray-800">
+                    <TableHead className="font-bold text-green-900 w-32">
                       Action
                     </TableHead>
                   </TableRow>
@@ -202,56 +257,47 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
                   {jobs.map((job, index) => (
                     <TableRow
                       key={index}
-                      className="hover:bg-blue-50 transition-colors align-top"
+                      className="hover:bg-green-100 transition-colors border-b border-green-200 align-top"
                     >
-                      <TableCell className="font-semibold text-gray-800 max-w-xs">
+                      <TableCell className="font-semibold text-gray-900 py-4">
                         {job.title}
                       </TableCell>
-                      <TableCell className="text-gray-600 text-sm max-w-xs truncate">
-                        {job.firma || "-"}
+                      <TableCell className="text-gray-700 py-4">
+                        {job.firma || "—"}
                       </TableCell>
-                      <TableCell className="text-gray-600 text-sm max-w-xs truncate">
-                        {job.arbeitsort || "-"}
+                      <TableCell className="text-gray-700 py-4">
+                        {job.arbeitsort || "—"}
                       </TableCell>
-                      <TableCell className="text-gray-600 text-sm max-w-2xl whitespace-pre-wrap">
+                      <TableCell className="text-gray-700 text-sm py-4 whitespace-pre-wrap max-h-64 overflow-y-auto">
                         {job.description
-                          ? job.description.substring(0, 300)
-                          : "-"}
+                          ? job.description.substring(0, 600)
+                          : "—"}
                       </TableCell>
-                      <TableCell className="space-x-2">
-                        <Button
-                          onClick={() => handleJobSelect(job)}
-                          className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded-md text-sm font-medium transition-colors"
-                        >
-                          <Check className="h-4 w-4" />
-                          Übernehmen
-                        </Button>
-                        <a
-                          href={job.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md text-sm font-medium transition-colors"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          Link
-                        </a>
+                      <TableCell className="py-4">
+                        <div className="flex flex-col gap-2">
+                          <Button
+                            onClick={() => handleJobSelect(job)}
+                            className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md text-sm font-semibold transition-colors shadow-md"
+                          >
+                            <Check className="h-4 w-4" />
+                            Übernehmen
+                          </Button>
+                          <a
+                            href={job.link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-semibold transition-colors shadow-md"
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                            Link
+                          </a>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* No Jobs Message */}
-      {!loading && jobs.length === 0 && !error && (
-        <Card className="w-full bg-gray-50 border border-gray-200 rounded-2xl">
-          <CardContent className="py-12 text-center">
-            <p className="text-gray-500 text-lg">
-              Klicke auf "Scrape Jobs" um Jobs zu laden
-            </p>
           </CardContent>
         </Card>
       )}
