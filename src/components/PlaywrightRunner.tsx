@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { useState } from "react";
-import { AlertCircle, CheckCircle2, Loader2, ExternalLink } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, ExternalLink, Check } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -15,13 +15,14 @@ interface Job {
   title: string;
   link: string;
   description?: string;
+  firma?: string;
+  arbeitsort?: string;
 }
 
 interface ScraperEvent {
-  type: "step" | "screenshot" | "data" | "error" | "complete";
+  type: "step" | "data" | "error" | "complete";
   step?: number;
   message?: string;
-  screenshot?: string;
   data?: Job;
   error?: string;
 }
@@ -31,7 +32,11 @@ interface ProgressItem {
   message: string;
 }
 
-export function PlaywrightRunner() {
+interface PlaywrightRunnerProps {
+  onJobSelect?: (job: Job) => void;
+}
+
+export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
   const [loading, setLoading] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [message, setMessage] = useState("");
@@ -90,6 +95,12 @@ export function PlaywrightRunner() {
       setError(errorMsg);
       setMessage(`❌ Fehler: ${errorMsg}`);
       setLoading(false);
+    }
+  };
+
+  const handleJobSelect = (job: Job) => {
+    if (onJobSelect) {
+      onJobSelect(job);
     }
   };
 
@@ -170,8 +181,14 @@ export function PlaywrightRunner() {
               <Table>
                 <TableHeader>
                   <TableRow className="border-b-2 border-blue-200">
-                    <TableHead className="font-bold text-gray-800">
+                    <TableHead className="font-bold text-gray-800 max-w-xs">
                       Jobtitel
+                    </TableHead>
+                    <TableHead className="font-bold text-gray-800">
+                      Firma
+                    </TableHead>
+                    <TableHead className="font-bold text-gray-800">
+                      Ort
                     </TableHead>
                     <TableHead className="font-bold text-gray-800">
                       Beschreibung
@@ -190,12 +207,25 @@ export function PlaywrightRunner() {
                       <TableCell className="font-semibold text-gray-800 max-w-xs">
                         {job.title}
                       </TableCell>
+                      <TableCell className="text-gray-600 text-sm max-w-xs truncate">
+                        {job.firma || "-"}
+                      </TableCell>
+                      <TableCell className="text-gray-600 text-sm max-w-xs truncate">
+                        {job.arbeitsort || "-"}
+                      </TableCell>
                       <TableCell className="text-gray-600 text-sm max-w-lg truncate">
                         {job.description
                           ? job.description.substring(0, 100) + "..."
                           : "-"}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="space-x-2">
+                        <Button
+                          onClick={() => handleJobSelect(job)}
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded-md text-sm font-medium transition-colors"
+                        >
+                          <Check className="h-4 w-4" />
+                          Übernehmen
+                        </Button>
                         <a
                           href={job.link}
                           target="_blank"
@@ -203,7 +233,7 @@ export function PlaywrightRunner() {
                           className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-md text-sm font-medium transition-colors"
                         >
                           <ExternalLink className="h-4 w-4" />
-                          Öffnen
+                          Link
                         </a>
                       </TableCell>
                     </TableRow>

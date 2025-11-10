@@ -10,6 +10,14 @@ interface ScraperEvent {
   error?: string;
 }
 
+interface JobData {
+  title: string;
+  description: string;
+  link: string;
+  firma?: string;
+  arbeitsort?: string;
+}
+
 async function scrapeArbeitsagenturJob(
   onProgress: (event: ScraperEvent) => void
 ) {
@@ -90,24 +98,30 @@ async function scrapeArbeitsagenturJob(
         message: `${jobElements.length} Jobs gefunden!`,
       });
 
-      // Schritt 4: Einen Job öffnen und Daten extrahieren
-      if (jobElements.length > 0) {
+      // Schritt 4: Alle Jobs durchgehen und Daten extrahieren
+      const maxJobs = Math.min(jobElements.length, 5); // Limit auf 5 Jobs
+
+      for (let i = 0; i < maxJobs; i++) {
         onProgress({
           type: "step",
           step: 4,
-          message: "Erster Job wird geöffnet...",
+          message: `Job ${i + 1}/${maxJobs} wird geöffnet...`,
         });
 
-        const firstJobLink = await jobElements[0]
+        const jobElement = jobElements[i];
+        const jobLink = await jobElement
           .getAttribute("href")
           .catch(() => null);
-        const firstJobTitle = await jobElements[0]
+        let jobTitle = await jobElement
           .locator("h3")
           .innerText()
           .catch(() => "Titel nicht verfügbar");
 
-        if (firstJobLink) {
-          const absoluteLink = new URL(firstJobLink, targetUrl).toString();
+        // Entferne "1. Ergebnis", "2. Ergebnis" etc. aus dem Titel
+        jobTitle = jobTitle.replace(/^\d+\.\s*Ergebnis\s*/, "").trim();
+
+        if (jobLink) {
+          const absoluteLink = new URL(jobLink, targetUrl).toString();
 
           try {
             await page.goto(absoluteLink, {
@@ -118,75 +132,94 @@ async function scrapeArbeitsagenturJob(
             console.warn("Timeout beim Laden der Job-Seite");
           }
 
-          // Schritt 5: Jobdaten extrahieren
-          onProgress({
-            type: "step",
-            step: 5,
-            message: "Jobdetails werden extrahiert...",
-          });
-
           // Warte kurz, damit Seite vollständig geladen ist
-          await page.waitForTimeout(2000);
+          await page.waitForTimeout(1500);
 
           let jobDescription = "";
+          let firma = "";
+          let arbeitsort = "";
 
-          // Versuche verschiedene Selektoren für Jobdescription
-          const descriptionSelectors = [
-            'div[class*="stellenangebot"]',
-            'div[class*="job-description"]',
-            'div[class*="Inhalt"]',
-            'section[class*="content"]',
-            "main",
-            "article",
-          ];
+          // Extrahiere Beschreibung
+          try {
+            const descElement = page.locator(
+              'xpath=//*[@id="detail-beschreibung-beschreibung"]'
+            );
+            const isVisible = await descElement
+              .isVisible({ timeout: 2000 })
+              .catch(() => false);
+            if (isVisible) {
+              jobDescription = await descElement
+                .innerText({ timeout: 3000 })
+                .catch(() => "");
+            }
+          } catch (e) {
+            console.log("Beschreibung nicht mit XPath gefunden");
+          }
 
-          for (const selector of descriptionSelectors) {
+          // Fallback für Beschreibung
+          if (!jobDescription || jobDescription.length < 50) {
             try {
-              const element = page.locator(selector).first();
-              const isVisible = await element
-                .isVisible({ timeout: 2000 })
-                .catch(() => false);
-
-              if (isVisible) {
-                const text = await element
-                  .innerText({ timeout: 3000 })
-                  .catch(() => "");
-                if (text && text.length > 100) {
-                  jobDescription = text.substring(0, 500); // Limit auf 500 Zeichen
-                  break;
-                }
-              }
+              const descElement = page.locator("div[class*='beschreibung']").first();
+              jobDescription = await descElement
+                .innerText({ timeout: 2000 })
+                .catch(() => "");
             } catch (e) {
-              // Selector nicht gefunden, nächster versuchen
+              // pass
             }
           }
 
-          // Fallback: Hole den gesamten Body-Text
-          if (!jobDescription || jobDescription.length < 50) {
-            try {
-              jobDescription = await page
-                .innerText("body")
-                .then((text) => text.substring(0, 500))
-                .catch(() => "Beschreibung nicht verfügbar");
-            } catch (e) {
-              jobDescription = "Beschreibung nicht verfügbar";
+          // Extrahiere Firma
+          try {
+            const firmaElement = page.locator(
+              'xpath=//*[@id="detail-kopfbereich-firma"]'
+            );
+            const isVisible = await firmaElement
+              .isVisible({ timeout: 2000 })
+              .catch(() => false);
+            if (isVisible) {
+              firma = await firmaElement
+                .innerText({ timeout: 3000 })
+                .catch(() => "");
             }
+          } catch (e) {
+            console.log("Firma nicht mit XPath gefunden");
+          }
+
+          // Extrahiere Arbeitsort
+          try {
+            const arbeitsortElement = page.locator(
+              'xpath=//*[@id="detail-kopfbereich-arbeitsort"]'
+            );
+            const isVisible = await arbeitsortElement
+              .isVisible({ timeout: 2000 })
+              .catch(() => false);
+            if (isVisible) {
+              arbeitsort = await arbeitsortElement
+                .innerText({ timeout: 3000 })
+                .catch(() => "");
+            }
+          } catch (e) {
+            console.log("Arbeitsort nicht mit XPath gefunden");
           }
 
           // Sende die Jobdaten
+          const jobData: JobData = {
+            title: jobTitle,
+            description: jobDescription.trim().substring(0, 1000),
+            link: absoluteLink,
+            firma: firma.trim(),
+            arbeitsort: arbeitsort.trim(),
+          };
+
           onProgress({
             type: "data",
-            data: {
-              title: firstJobTitle,
-              description: jobDescription.trim(),
-              link: absoluteLink,
-            },
+            data: jobData,
           });
 
           onProgress({
             type: "step",
-            step: 5,
-            message: `✅ Job extrahiert: "${firstJobTitle}"`,
+            step: 4,
+            message: `✅ Job ${i + 1} extrahiert: "${jobTitle}"`,
           });
         }
       }

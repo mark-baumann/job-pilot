@@ -73,6 +73,20 @@ export default function ApplicationGenerator({ selectedJob }: ApplicationGenerat
   const [adresseInput, setAdresseInput] = useState("");
   const [titleInput, setTitleInput] = useState("");
 
+  // Handle job selection from PlaywrightRunner
+  const handleJobSelect = (job: any) => {
+    setTitleInput(job.title || "");
+    setFirmaInput(job.firma || "");
+    setAdresseInput(job.arbeitsort || "");
+    setJobDescription(job.description || "");
+    
+    // Save to localStorage
+    localStorage.setItem("title", job.title || "");
+    localStorage.setItem("firma", job.firma || "");
+    localStorage.setItem("adresse", job.arbeitsort || "");
+    localStorage.setItem("job-description", job.description || "");
+  };
+
   useEffect(() => {
     if (selectedJob) {
       setTitleInput(selectedJob.title);
@@ -751,7 +765,7 @@ Mark Baumann`
         </div>
 
         {/* Job Scraper */}
-        <PlaywrightRunner />
+        <PlaywrightRunner onJobSelect={handleJobSelect} />
 
         {/* API Configuration */}
         <Card className="w-full bg-white shadow-xl border border-blue-200 rounded-2xl text-black">
