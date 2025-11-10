@@ -1,3 +1,4 @@
+import { VercelRequest, VercelResponse } from "@vercel/node";
 import chromium from "@sparticuz/chromium";
 import { chromium as playwrightChromium } from "playwright-core";
 
@@ -9,7 +10,7 @@ interface ScraperEvent {
   error?: string;
 }
 
-export async function scrapeArbeitsagenturJob(
+async function scrapeArbeitsagenturJob(
   onProgress: (event: ScraperEvent) => void
 ) {
   let browser = null;
@@ -38,7 +39,7 @@ export async function scrapeArbeitsagenturJob(
 
     const targetUrl =
       "https://www.arbeitsagentur.de/jobsuche/suche?berufsfeld=Softwareentwicklung%20und%20Programmierung&angebotsart=1&wo=85256%20Vierkirchen,%20Oberbayern&umkreis=25";
-    
+
     try {
       await page.goto(targetUrl, { waitUntil: "networkidle", timeout: 30000 });
     } catch (e) {
@@ -56,8 +57,10 @@ export async function scrapeArbeitsagenturJob(
       const acceptButton = page.getByTestId(
         "bahf-cookie-disclaimer-btn-alle"
       );
-      const isVisible = await acceptButton.isVisible({ timeout: 5000 }).catch(() => false);
-      
+      const isVisible = await acceptButton
+        .isVisible({ timeout: 5000 })
+        .catch(() => false);
+
       if (isVisible) {
         await acceptButton.click();
         await page.waitForTimeout(1000);
@@ -75,7 +78,10 @@ export async function scrapeArbeitsagenturJob(
 
     try {
       const jobItemsLocator = page.locator('a[id^="ergebnisliste-item-"]');
-      await jobItemsLocator.first().waitFor({ timeout: 10000 }).catch(() => {});
+      await jobItemsLocator
+        .first()
+        .waitFor({ timeout: 10000 })
+        .catch(() => {});
       const jobElements = await jobItemsLocator.all();
 
       onProgress({
@@ -92,7 +98,9 @@ export async function scrapeArbeitsagenturJob(
           message: "Erster Job wird geöffnet...",
         });
 
-        const firstJobLink = await jobElements[0].getAttribute("href").catch(() => null);
+        const firstJobLink = await jobElements[0]
+          .getAttribute("href")
+          .catch(() => null);
         const firstJobTitle = await jobElements[0]
           .locator("h3")
           .innerText()
@@ -100,9 +108,12 @@ export async function scrapeArbeitsagenturJob(
 
         if (firstJobLink) {
           const absoluteLink = new URL(firstJobLink, targetUrl).toString();
-          
+
           try {
-            await page.goto(absoluteLink, { waitUntil: "networkidle", timeout: 20000 });
+            await page.goto(absoluteLink, {
+              waitUntil: "networkidle",
+              timeout: 20000,
+            });
           } catch (e) {
             console.warn("Timeout beim Laden der Job-Seite");
           }
@@ -125,17 +136,21 @@ export async function scrapeArbeitsagenturJob(
             'div[class*="job-description"]',
             'div[class*="Inhalt"]',
             'section[class*="content"]',
-            'main',
-            'article',
+            "main",
+            "article",
           ];
 
           for (const selector of descriptionSelectors) {
             try {
               const element = page.locator(selector).first();
-              const isVisible = await element.isVisible({ timeout: 2000 }).catch(() => false);
-              
+              const isVisible = await element
+                .isVisible({ timeout: 2000 })
+                .catch(() => false);
+
               if (isVisible) {
-                const text = await element.innerText({ timeout: 3000 }).catch(() => "");
+                const text = await element
+                  .innerText({ timeout: 3000 })
+                  .catch(() => "");
                 if (text && text.length > 100) {
                   jobDescription = text.substring(0, 500); // Limit auf 500 Zeichen
                   break;
@@ -151,7 +166,7 @@ export async function scrapeArbeitsagenturJob(
             try {
               jobDescription = await page
                 .innerText("body")
-                .then(text => text.substring(0, 500))
+                .then((text) => text.substring(0, 500))
                 .catch(() => "Beschreibung nicht verfügbar");
             } catch (e) {
               jobDescription = "Beschreibung nicht verfügbar";
@@ -208,10 +223,12 @@ export async function scrapeArbeitsagenturJob(
   }
 }
 
-export default async function handler(req: any, res: any) {
+export default async function handler(
+  req: VercelRequest,
+  res: VercelResponse
+) {
   if (req.method !== "GET") {
-    res.statusCode = 405;
-    res.end("Method Not Allowed");
+    res.status(405).end("Method Not Allowed");
     return;
   }
 
