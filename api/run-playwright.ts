@@ -20,34 +20,39 @@ export default async function handler(
     const context = await browser.newContext();
     const page = await context.newPage();
 
-    await page.goto(
-      "https://www.arbeitsagentur.de/jobsuche/suche?berufsfeld=Softwareentwicklung%20und%20Programmierung&angebotsart=1&wo=85256%20Vierkirchen,%20Oberbayern&umkreis=25"
-    );
+    const targetUrl = "https://www.arbeitsagentur.de/jobsuche/suche?berufsfeld=Softwareentwicklung%20und%20Programmierung&angebotsart=1&wo=85256%20Vierkirchen,%20Oberbayern&umkreis=25";
+    await page.goto(targetUrl);
 
     // Handle cookie consent
     try {
         const acceptButton = page.getByTestId("bahf-cookie-disclaimer-btn-alle");
         await acceptButton.waitFor({ state: 'visible', timeout: 10000 });
         await acceptButton.click();
-        // Wait for the modal to disappear
         await page.locator('#bahf-cookie-disclaimer-modal').waitFor({ state: 'hidden', timeout: 5000 });
-        console.log("Cookie consent handled.");
     } catch (e) {
         console.log("Cookie consent button not found or already handled.");
     }
     
-    await page.waitForTimeout(500); // wait for page to settle
+    // Wait for the results to be loaded
+    const jobItemsLocator = page.locator('a[id^="ergebnisliste-item-"]');
+    await jobItemsLocator.first().waitFor();
 
-    // Wait for navigation and get the heading
-    const heading = page.getByRole("heading", { name: "Jobsuche", exact: true });
-    await heading.waitFor({ state: "visible" });
+    const jobElements = await jobItemsLocator.all();
 
-    const screenshotBuffer = await page.screenshot();
-    const screenshotBase64 = screenshotBuffer.toString('base64');
+    const jobs = [];
+    for (const jobElement of jobElements) {
+      const link = await jobElement.getAttribute('href');
+      const title = await jobElement.locator('h3').innerText();
+  
+      if (title && link) {
+        const absoluteLink = new URL(link, targetUrl).toString();
+        jobs.push({ title, link: absoluteLink });
+      }
+    }
 
     res.status(200).json({
-      message: "Playwright script executed successfully.",
-      screenshot: `data:image/png;base64,${screenshotBase64}`,
+      message: `Successfully scraped ${jobs.length} jobs.`,
+      jobs: jobs,
     });
   } catch (error) {
     console.error(error);

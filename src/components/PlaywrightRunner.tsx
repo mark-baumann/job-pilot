@@ -1,24 +1,32 @@
 import { Button } from "@/components/ui/button";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
+
+interface Job {
+  title: string;
+  link: string;
+}
 
 export function PlaywrightRunner() {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState("");
-  const [screenshot, setScreenshot] = useState("");
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [message, setMessage] = useState("");
 
   const runTest = async () => {
     setLoading(true);
-    setResult("");
-    setScreenshot("");
+    setJobs([]);
+    setMessage("");
     try {
       const response = await fetch("/api/run-playwright");
       const data = await response.json();
-      setResult(data.message);
-      if (data.screenshot) {
-        setScreenshot(data.screenshot);
+      if (response.ok) {
+        setJobs(data.jobs || []);
+        setMessage(data.message || "Jobs loaded successfully.");
+      } else {
+        setMessage(data.message || "An error occurred.");
       }
     } catch (error) {
-      setResult("An error occurred.");
+      setMessage("An error occurred while fetching the jobs.");
     } finally {
       setLoading(false);
     }
@@ -27,19 +35,28 @@ export function PlaywrightRunner() {
   return (
     <div className="p-4">
       <Button onClick={runTest} disabled={loading}>
-        {loading ? "Running..." : "Run Playwright Test"}
+        {loading ? "Searching for Jobs..." : "Find Jobs via Playwright"}
       </Button>
-      {result && (
-        <pre className="mt-4 bg-gray-100 p-4 rounded-md">{result}</pre>
+      {message && !loading && (
+        <p className="mt-4 text-sm text-gray-600">{message}</p>
       )}
-      {screenshot && (
-        <div className="mt-4">
-          <h3 className="text-lg font-semibold">Screenshot</h3>
-          <img
-            src={screenshot}
-            alt="Playwright test screenshot"
-            className="mt-2 border border-gray-300 rounded-md"
-          />
+      {jobs.length > 0 && (
+        <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {jobs.map((job, index) => (
+            <a
+              href={job.link}
+              key={index}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block"
+            >
+              <Card className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <CardTitle className="text-base">{job.title}</CardTitle>
+                </CardHeader>
+              </Card>
+            </a>
+          ))}
         </div>
       )}
     </div>
