@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { useState, useEffect } from "react";
-import { AlertCircle, CheckCircle2, Loader2, ExternalLink, Check, Image as ImageIcon } from "lucide-react";
+import { useRef } from "react";
+import { AlertCircle, CheckCircle2, Loader2, Image as ImageIcon } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -44,6 +45,9 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
   const [progress, setProgress] = useState<ProgressItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [screenshots, setScreenshots] = useState<string[]>([]);
+  const [selectedScreenshot, setSelectedScreenshot] = useState<string | null>(null);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   // Load jobs from localStorage on mount
   useEffect(() => {
@@ -55,6 +59,16 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
         console.log("Cache laden fehlgeschlagen");
       }
     }
+  }, []);
+
+  // cleanup EventSource on unmount
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        try { eventSourceRef.current.close(); } catch (e) {}
+        eventSourceRef.current = null;
+      }
+    };
   }, []);
 
   // Save jobs to localStorage whenever they change
@@ -71,16 +85,27 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
     setError(null);
     setScreenshots([]);
 
-    try {
-      const eventSource = new EventSource("/api/scrape-arbeitsagentur");
+    // ensure any existing EventSource is closed before opening a new one
+    if (eventSourceRef.current) {
+      try {
+        eventSourceRef.current.close();
+      } catch (e) {}
+      eventSourceRef.current = null;
+    }
 
-      eventSource.onmessage = (event) => {
+    try {
+      // append timestamp to avoid cached/pooled connections
+      const url = `/api/scrape-arbeitsagentur?ts=${Date.now()}`;
+      const es = new EventSource(url);
+      eventSourceRef.current = es;
+
+      es.onmessage = (event) => {
         const scraperEvent: ScraperEvent = JSON.parse(event.data);
 
         switch (scraperEvent.type) {
           case "step":
             if (scraperEvent.step && scraperEvent.message) {
-              setProgress((prev) => [...prev, scraperEvent]);
+              setProgress((prev) => [...prev, { step: scraperEvent.step!, message: scraperEvent.message! }]);
               setMessage(`⏳ ${scraperEvent.message}`);
             }
             break;
@@ -100,28 +125,30 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
 
           case "screenshot":
             if (scraperEvent.image) {
-              setScreenshots((prev) => [...prev, scraperEvent.image!]);
+              setScreenshots((prev) => (prev.includes(scraperEvent.image!) ? prev : [...prev, scraperEvent.image!]));
             }
             break;
 
           case "complete":
-            setMessage("✅ Scraping erfolgreich abgeschlossen!");
-            eventSource.close();
-            setLoading(false);
+              setMessage("✅ Scraping erfolgreich abgeschlossen!");
+              try { es.close(); } catch (e) {}
+              eventSourceRef.current = null;
+              setLoading(false);
             break;
 
           case "error":
             setError(scraperEvent.error || "Ein Fehler ist aufgetreten");
             setMessage(`❌ Fehler: ${scraperEvent.error}`);
-            eventSource.close();
+            try { es.close(); } catch (e) {}
+            eventSourceRef.current = null;
             setLoading(false);
             break;
         }
       };
-
-      eventSource.onerror = () => {
+      es.onerror = () => {
         setError("Verbindung zum Server unterbrochen");
-        eventSource.close();
+        try { es.close(); } catch (e) {}
+        eventSourceRef.current = null;
         setLoading(false);
       };
     } catch (err) {
@@ -138,14 +165,28 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
     }
   };
 
+  const toggleDescription = (link: string) => {
+    setExpandedDescriptions((prev) => ({ ...prev, [link]: !prev[link] }));
+  };
+
+  const handleAttachCompressed = (job: Job) => {
+    // Store a marker in localStorage that the compressed Zeugnis should be attached for this job
+    const key = "marks_zeugnis_compressed";
+    const payload = { jobLink: job.link, file: "/zeugnis-compressed.html" };
+    localStorage.setItem(key, JSON.stringify(payload));
+    // show a short message
+    setMessage("📎 Marks Zeugnis Compressed hinzugefügt");
+    setTimeout(() => setMessage(""), 3000);
+  };
+
   return (
     <div className="w-full space-y-4">
-      <Card className="w-full bg-gradient-to-br from-blue-50 to-indigo-50 shadow-xl border border-blue-300 rounded-2xl">
+      <Card className="w-full bg-white shadow border border-black rounded-2xl">
         <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-lg text-blue-900">
+          <CardTitle className="flex items-center gap-2 text-lg text-black">
             🔍 Jobs Scraper
           </CardTitle>
-          <CardDescription className="text-blue-700">
+          <CardDescription className="text-black/80">
             Scrape Jobs von der Arbeitsagentur-Website
           </CardDescription>
         </CardHeader>
@@ -172,7 +213,7 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
               className={`flex items-center gap-2 p-4 rounded-lg font-medium transition-all ${
                 error
                   ? "bg-red-100 border border-red-400 text-red-800"
-                  : "bg-green-100 border border-green-400 text-green-800"
+                  : "bg-white border border-black text-black"
               }`}
             >
               {error ? (
@@ -186,15 +227,12 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
 
           {/* Progress Steps */}
           {progress.length > 0 && (
-            <div className="bg-white border border-blue-200 p-4 rounded-lg space-y-2">
-              <p className="text-sm font-bold text-blue-900">Fortschritt:</p>
+            <div className="bg-white border border-black p-3 rounded-md space-y-2">
+              <p className="text-sm font-bold text-black">Fortschritt</p>
               {progress.map((item, index) => (
-                <div key={index} className="flex items-start gap-3 text-sm">
-                  <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-700">
-                    <span className="font-semibold text-blue-800">Schritt {item.step}:</span>{" "}
-                    {item.message}
-                  </span>
+                <div key={index} className="flex items-start gap-2 text-sm">
+                  <span className="text-xs text-black/60">•</span>
+                  <div className="text-black text-sm">{item.message}</div>
                 </div>
               ))}
             </div>
@@ -202,104 +240,119 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
 
           {/* Screenshots */}
           {screenshots.length > 0 && (
-            <div className="bg-white border border-green-200 p-4 rounded-lg">
-              <p className="text-sm font-bold text-green-900 mb-3 flex items-center gap-2">
+            <div className="bg-white border border-black p-3 rounded-md">
+              <p className="text-sm font-bold text-black mb-2 flex items-center gap-2">
                 <ImageIcon className="h-4 w-4" />
                 Screenshots ({screenshots.length})
               </p>
-              <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-96 overflow-y-auto">
                 {screenshots.map((screenshot, index) => (
-                  <div key={index} className="border border-gray-300 rounded-lg overflow-hidden">
-                    <img
-                      src={screenshot}
-                      alt={`Screenshot ${index + 1}`}
-                      className="w-full h-auto object-cover"
-                    />
-                  </div>
+                  <button
+                    key={index}
+                    onClick={() => setSelectedScreenshot(screenshot)}
+                    className="border border-gray-200 rounded-md overflow-hidden bg-white"
+                    aria-label={`Screenshot ${index + 1}`}
+                  >
+                    <img src={screenshot} alt={`Screenshot ${index + 1}`} className="w-full h-24 object-cover" />
+                  </button>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Screenshot modal */}
+          {selectedScreenshot && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={() => setSelectedScreenshot(null)}>
+              <div className="max-w-3xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
+                <div className="bg-white p-2 rounded-md">
+                  <img src={selectedScreenshot} alt="Selected screenshot" className="w-full h-auto object-contain" />
+                  <div className="mt-2 text-right">
+                    <Button onClick={() => setSelectedScreenshot(null)} className="px-3 py-1">Schließen</Button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Jobs Table */}
+      {/* Jobs Table - desktop */}
       {jobs.length > 0 && (
-        <Card className="w-full bg-gradient-to-br from-green-50 to-emerald-50 shadow-xl border border-green-300 rounded-2xl">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-lg text-green-900">
-              📋 Gefundene Jobs ({jobs.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto rounded-lg border border-green-200">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-green-200 hover:bg-green-200">
-                    <TableHead className="font-bold text-green-900 w-48">
-                      Jobtitel
-                    </TableHead>
-                    <TableHead className="font-bold text-green-900 w-40">
-                      Firma
-                    </TableHead>
-                    <TableHead className="font-bold text-green-900 w-36">
-                      Ort
-                    </TableHead>
-                    <TableHead className="font-bold text-green-900 w-80">
-                      Beschreibung
-                    </TableHead>
-                    <TableHead className="font-bold text-green-900 w-32">
-                      Action
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {jobs.map((job, index) => (
-                    <TableRow
-                      key={index}
-                      className="hover:bg-green-100 transition-colors border-b border-green-200 align-top"
-                    >
-                      <TableCell className="font-semibold text-gray-900 py-4">
-                        {job.title}
-                      </TableCell>
-                      <TableCell className="text-gray-700 py-4">
-                        {job.firma || "—"}
-                      </TableCell>
-                      <TableCell className="text-gray-700 py-4">
-                        {job.arbeitsort || "—"}
-                      </TableCell>
-                      <TableCell className="text-gray-700 text-sm py-4 whitespace-pre-wrap max-h-64 overflow-y-auto">
-                        {job.description
-                          ? job.description.substring(0, 600)
-                          : "—"}
-                      </TableCell>
-                      <TableCell className="py-4">
-                        <div className="flex flex-col gap-2">
-                          <Button
-                            onClick={() => handleJobSelect(job)}
-                            className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-green-500 hover:bg-green-600 text-white rounded-md text-sm font-semibold transition-colors shadow-md"
-                          >
-                            <Check className="h-4 w-4" />
-                            Übernehmen
-                          </Button>
-                          <a
-                            href={job.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center justify-center gap-1 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md text-sm font-semibold transition-colors shadow-md"
-                          >
-                            <ExternalLink className="h-4 w-4" />
-                            Link
-                          </a>
-                        </div>
-                      </TableCell>
+        <div className="w-full">
+          <Card className="w-full bg-white shadow border border-black rounded-lg hidden sm:block">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg text-black">📋 Gefundene Jobs ({jobs.length})</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto rounded">
+                <Table className="min-w-full">
+                  <TableHeader>
+                    <TableRow className="bg-white">
+                      <TableHead className="font-bold text-black">Jobtitel</TableHead>
+                      <TableHead className="font-bold text-black">Firma</TableHead>
+                      <TableHead className="font-bold text-black">Ort</TableHead>
+                      <TableHead className="font-bold text-black">Beschreibung</TableHead>
+                      <TableHead className="font-bold text-black">Aktionen</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {jobs.map((job) => (
+                      <TableRow key={job.link} className="border-t border-gray-200 align-top">
+                        <TableCell className="py-4 text-black font-medium w-48 max-w-xs break-words">{job.title}</TableCell>
+                        <TableCell className="py-4 text-black w-36 max-w-xs break-words">{job.firma || '—'}</TableCell>
+                        <TableCell className="py-4 text-black w-32">{job.arbeitsort || '—'}</TableCell>
+                        <TableCell className="py-4 text-black text-sm max-w-2xl">
+                          <div className="whitespace-pre-wrap">
+                            {expandedDescriptions[job.link]
+                              ? job.description || '—'
+                              : (job.description ? job.description.substring(0, 250) : '—')}
+                          </div>
+                          {job.description && job.description.length > 250 && (
+                            <button className="mt-2 text-xs text-black underline" onClick={() => toggleDescription(job.link)}>
+                              {expandedDescriptions[job.link] ? 'Einklappen' : 'Mehr anzeigen'}
+                            </button>
+                          )}
+                        </TableCell>
+                        <TableCell className="py-4">
+                          <div className="flex flex-row gap-2 flex-wrap">
+                            <Button onClick={() => handleJobSelect(job)} className="px-3 py-1 border border-black text-black bg-white">Übernehmen</Button>
+                            <a href={job.link} target="_blank" rel="noreferrer" className="px-3 py-1 border border-black text-black bg-white inline-flex items-center">Link</a>
+                            <Button onClick={() => handleAttachCompressed(job)} className="px-3 py-1 border border-black text-black bg-white">Marks Zeugnis Compressed</Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Mobile stacked cards */}
+          <div className="block sm:hidden space-y-3">
+            {jobs.map((job) => (
+              <Card key={job.link} className="bg-white border border-black rounded-lg">
+                <CardContent>
+                  <div className="mb-2 font-semibold text-black">{job.title}</div>
+                  <div className="text-sm text-black mb-2">{job.firma || '—'} • {job.arbeitsort || '—'}</div>
+                  <div className="text-sm text-black whitespace-pre-wrap mb-2">
+                    {expandedDescriptions[job.link] ? job.description : (job.description ? job.description.substring(0, 200) : '—')}
+                  </div>
+                  {job.description && job.description.length > 200 && (
+                    <button className="text-xs text-black underline" onClick={() => toggleDescription(job.link)}>
+                      {expandedDescriptions[job.link] ? 'Einklappen' : 'Mehr anzeigen'}
+                    </button>
+                  )}
+                  <div className="mt-3 flex gap-2">
+                    <Button onClick={() => handleJobSelect(job)} className="px-3 py-1 border border-black text-black bg-white">Übernehmen</Button>
+                    <a href={job.link} target="_blank" rel="noreferrer" className="px-3 py-1 border border-black text-black bg-white inline-flex items-center">Link</a>
+                    <Button onClick={() => handleAttachCompressed(job)} className="px-3 py-1 border border-black text-black bg-white">Marks Zeugnis Compressed</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

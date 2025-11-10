@@ -1,5 +1,5 @@
-import { VercelRequest, VercelResponse } from "@vercel/node";
 import chromium from "@sparticuz/chromium";
+// Note: avoid importing Vercel types here to keep local dev simple
 import { chromium as playwrightChromium } from "playwright-core";
 
 interface ScraperEvent {
@@ -31,26 +31,22 @@ async function scrapeArbeitsagenturJob(
   try {
     // Check cache
     const now = Date.now();
-    if (cachedJobs.length > 0 && (now - cacheTimestamp) < CACHE_DURATION) {
+    const hadCache = cachedJobs.length > 0 && (now - cacheTimestamp) < CACHE_DURATION;
+    if (hadCache) {
       onProgress({
         type: "step",
         step: 1,
-        message: `Cache gefunden! ${cachedJobs.length} Jobs geladen.`,
+        message: `Cache gefunden! ${cachedJobs.length} Jobs geladen. (Suche nach neuen Jobs...)`,
       });
 
-      // Send all cached jobs
+      // Send all cached jobs first
       for (const job of cachedJobs) {
         onProgress({
           type: "data",
           data: job,
         });
       }
-
-      onProgress({
-        type: "complete",
-        message: "Jobs aus Cache geladen!",
-      });
-      return;
+      // Continue to scrape live site to find any new jobs and only send those
     }
 
     const executablePath = await chromium.executablePath();
@@ -60,9 +56,10 @@ async function scrapeArbeitsagenturJob(
       );
     }
     browser = await playwrightChromium.launch({
-      args: chromium.args,
+      args: (chromium as any).args || [],
       executablePath: executablePath,
-      headless: chromium.headless,
+      // sparticuz chromium may expose headless as runtime flag; cast to any to avoid TS errors
+      headless: (chromium as any).headless ?? true,
     });
 
     const context = await browser.newContext();
@@ -159,8 +156,8 @@ async function scrapeArbeitsagenturJob(
       }
 
       // Schritt 4: Alle Jobs durchgehen und Daten extrahieren
-      const totalJobs = jobElements.length;
-      cachedJobs = []; // Reset cache
+  const totalJobs = jobElements.length;
+  // Do NOT reset cachedJobs here - we want to keep existing cache and only add new jobs
 
       // Sammle zuerst alle Job-Links und Titel, bevor wir die Seite verlassen
       const jobLinks: { link: string; title: string }[] = [];
@@ -304,12 +301,16 @@ async function scrapeArbeitsagenturJob(
           arbeitsort: arbeitsort.trim(),
         };
 
-        cachedJobs.push(jobData);
+        // Check if job already exists in cache (by link) and skip if so
+        const already = cachedJobs.some((j) => j.link === jobData.link);
+        if (!already) {
+          cachedJobs.push(jobData);
 
-        onProgress({
-          type: "data",
-          data: jobData,
-        });
+          onProgress({
+            type: "data",
+            data: jobData,
+          });
+        }
 
         // Screenshot der Job-Detail-Seite
         let jobScreenshot = await page.screenshot({ path: undefined }).catch(() => null);
@@ -323,7 +324,7 @@ async function scrapeArbeitsagenturJob(
 
         onProgress({
           type: "step",
-          step: 4,
+          step: 5,
           message: `✅ Job ${i + 1}/${totalJobs} extrahiert`,
         });
       }
@@ -363,10 +364,7 @@ async function scrapeArbeitsagenturJob(
   }
 }
 
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
+export default async function handler(req: any, res: any) {
   if (req.method !== "GET") {
     res.status(405).end("Method Not Allowed");
     return;
