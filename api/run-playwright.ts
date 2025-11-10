@@ -1,5 +1,5 @@
 import playwright from "playwright-aws-lambda";
-import chromium from "chrome-aws-lambda";
+import chromium = require("chrome-aws-lambda");
 import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
