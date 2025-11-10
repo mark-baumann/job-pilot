@@ -169,16 +169,6 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
     setExpandedDescriptions((prev) => ({ ...prev, [link]: !prev[link] }));
   };
 
-  const handleAttachCompressed = (job: Job) => {
-    // Store a marker in localStorage that the compressed Zeugnis should be attached for this job
-    const key = "marks_zeugnis_compressed";
-    const payload = { jobLink: job.link, file: "/zeugnis-compressed.html" };
-    localStorage.setItem(key, JSON.stringify(payload));
-    // show a short message
-    setMessage("📎 Marks Zeugnis Compressed hinzugefügt");
-    setTimeout(() => setMessage(""), 3000);
-  };
-
   return (
     <div className="w-full space-y-4">
       <Card className="w-full bg-white shadow border border-black rounded-2xl">
@@ -317,7 +307,7 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
                           <div className="flex flex-row gap-2 flex-wrap">
                             <Button onClick={() => handleJobSelect(job)} className="px-3 py-1 border border-black text-black bg-white">Übernehmen</Button>
                             <a href={job.link} target="_blank" rel="noreferrer" className="px-3 py-1 border border-black text-black bg-white inline-flex items-center">Link</a>
-                            <Button onClick={() => handleAttachCompressed(job)} className="px-3 py-1 border border-black text-black bg-white">Marks Zeugnis Compressed</Button>
+                            
                           </div>
                         </TableCell>
                       </TableRow>
@@ -346,7 +336,7 @@ export function PlaywrightRunner({ onJobSelect }: PlaywrightRunnerProps) {
                   <div className="mt-3 flex gap-2">
                     <Button onClick={() => handleJobSelect(job)} className="px-3 py-1 border border-black text-black bg-white">Übernehmen</Button>
                     <a href={job.link} target="_blank" rel="noreferrer" className="px-3 py-1 border border-black text-black bg-white inline-flex items-center">Link</a>
-                    <Button onClick={() => handleAttachCompressed(job)} className="px-3 py-1 border border-black text-black bg-white">Marks Zeugnis Compressed</Button>
+                    
                   </div>
                 </CardContent>
               </Card>

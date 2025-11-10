@@ -438,6 +438,7 @@ Mit freundlichen Grüßen`;
   const [sendZeugnisse, setSendZeugnisse] = useState(true);
   const [sendCv, setSendCv] = useState(true);
   const [zeugnisseFile, setZeugnisseFile] = useState<File | null>(null);
+  const [useCompressedZeugnis, setUseCompressedZeugnis] = useState(false);
   const [isEmailSending, setIsEmailSending] = useState(false);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   // Persist: SMTP + Email settings (load on mount)
@@ -679,20 +680,41 @@ Mark Baumann`
       if (sendZeugnisse) {
         try {
           let zBlob: Blob | null = null;
-          if (zeugnisseFile) {
-            zBlob = zeugnisseFile;
-          } else {
-            const resp = await fetch('/zeugnisse.pdf');
-            if (resp.ok) {
-              zBlob = await resp.blob();
+          if (useCompressedZeugnis) {
+            // Attach compressed Zeugnis (HTML or other asset) from public/ instead of the PDF
+            try {
+              const resp = await fetch('/zeugnis-compressed.html');
+              if (resp.ok) {
+                zBlob = await resp.blob();
+                attachments.push({
+                  filename: 'Marks_Zeugnis_Compressed.html',
+                  contentType: zBlob.type || 'text/html',
+                  base64: await blobToBase64(zBlob),
+                });
+              }
+            } catch (e) {
+              console.error('Could not fetch compressed zeugnis', e);
             }
-          }
-          if (zBlob) {
-            attachments.push({
-              filename: zeugnisseFile?.name || 'Marks_Zeugnisse.pdf',
-              contentType: 'application/pdf',
-              base64: await blobToBase64(zBlob),
-            });
+          } else {
+            try {
+              if (zeugnisseFile) {
+                zBlob = zeugnisseFile;
+              } else {
+                const resp = await fetch('/zeugnisse.pdf');
+                if (resp.ok) {
+                  zBlob = await resp.blob();
+                }
+              }
+              if (zBlob) {
+                attachments.push({
+                  filename: zeugnisseFile?.name || 'Marks_Zeugnisse.pdf',
+                  contentType: zBlob.type || 'application/pdf',
+                  base64: await blobToBase64(zBlob),
+                });
+              }
+            } catch (e) {
+              console.error('Could not fetch zeugnisse.pdf', e);
+            }
           }
         } catch {}
       }
@@ -1224,6 +1246,8 @@ Mark Baumann`
               onCvUploadClick={() => document.getElementById('resume-upload')?.click()}
               onZeugnisseUpload={(file) => setZeugnisseFile(file)}
               zeugnisseFileName={zeugnisseFile?.name}
+              useCompressedZeugnis={useCompressedZeugnis}
+              onUseCompressedZeugnisChange={(v) => setUseCompressedZeugnis(v)}
               onLoadDemoZeugnisse={async () => {
                 try {
                   const resp = await fetch('/zeugnisse.pdf');
