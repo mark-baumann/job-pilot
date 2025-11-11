@@ -236,8 +236,8 @@ async function scrapeAllJobs(): Promise<JobData[]> {
 }
 
 export default async function handler(req: any, res: any) {
-  // Verify cron secret if provided
-  if (req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
+  // Verify cron secret if provided. If CRON_SECRET is not set (local dev), allow triggering.
+  if (process.env.CRON_SECRET && req.headers.authorization !== `Bearer ${process.env.CRON_SECRET}`) {
     console.warn("Unauthorized cron request");
     return res.status(401).json({ error: "Unauthorized" });
   }
@@ -246,19 +246,36 @@ export default async function handler(req: any, res: any) {
     console.log("Cron job started...");
     const jobs = await scrapeAllJobs();
 
+    const timestamp = Date.now();
     const cacheData: CacheData = {
-      timestamp: Date.now(),
+      timestamp,
       jobs,
     };
 
-    // Speichere die Daten in Vercel KV
+    // Save snapshot under a timestamped key and update an index list
+    const snapshotKey = `jobs-cache:${timestamp}`;
+    await kv.set(snapshotKey, JSON.stringify(cacheData));
+
+    // Update latest pointer for backward compatibility
     await kv.set("jobs-cache", JSON.stringify(cacheData));
-    console.log(`Cron job completed: ${jobs.length} jobs saved to KV`);
+
+    try {
+      const existing = await kv.get("jobs-cache-index");
+      const index = typeof existing === "string" ? JSON.parse(existing) : existing || [];
+      // Prepend new snapshot metadata
+      const meta = { timestamp, count: jobs.length };
+      const next = [meta, ...(Array.isArray(index) ? index : [])].slice(0, 50); // keep last 50
+      await kv.set("jobs-cache-index", JSON.stringify(next));
+    } catch (e) {
+      console.warn("Failed to update jobs-cache-index", e);
+    }
+
+    console.log(`Cron job completed: ${jobs.length} jobs saved to KV (${snapshotKey})`);
 
     res.status(200).json({
       success: true,
       message: `Scraping completed: ${jobs.length} jobs saved`,
-      timestamp: cacheData.timestamp,
+      timestamp,
     });
   } catch (error) {
     console.error("Cron job error:", error);

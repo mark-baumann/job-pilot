@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/scrape-arbeitsagentur-cron",
-      "schedule": "32 23 * * *"
+      "schedule": "45 0 * * *"
     }
   ]
 }

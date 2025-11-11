@@ -2,17 +2,22 @@ import { kv } from "@vercel/kv";
 
 export default async function handler(req: any, res: any) {
   try {
-    const cacheData = await kv.get("jobs-cache");
+    // Allow optional timestamp query to fetch a historical snapshot
+    const url = req.url ? new URL(req.url, "http://localhost") : null;
+    const qp = req.query && req.query.timestamp ? req.query.timestamp : url ? url.searchParams.get("timestamp") : null;
+
+    const key = qp ? `jobs-cache:${qp}` : "jobs-cache";
+
+    const cacheData = await kv.get(key as string);
 
     if (!cacheData) {
       return res.status(404).json({
-        error: "Cache not available yet. Cron job will run daily at 2:00 UTC.",
+        error: "Cache not available for the requested timestamp.",
         timestamp: null,
         jobs: [],
       });
     }
 
-    // cacheData ist bereits ein JSON-String
     const data = typeof cacheData === "string" ? JSON.parse(cacheData) : cacheData;
 
     res.status(200).json(data);
