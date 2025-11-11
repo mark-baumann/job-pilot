@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Button } from "./ui/button";
 
-const PlaywrightRunner: React.FC = () => {
+export const PlaywrightRunner: React.FC = () => {
   const [status, setStatus] = useState("");
   const [screenshot, setScreenshot] = useState("");
 
