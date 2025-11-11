@@ -14,7 +14,7 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
   const [jobs, setJobs] = useState<Job[]>([]);
   const [progress, setProgress] = useState<number>(0);
 
-  const [maxNew, setMaxNew] = useState<number>(10);
+  const [maxNew, setMaxNew] = useState<number>(5);
 
   const loadAllJobs = async () => {
     try {
@@ -138,37 +138,46 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
 
           <div>
             <h4 className="text-sm font-medium mb-2">Alle Jobs</h4>
-            <ScrollArea className="h-64 border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {jobs.map((job, idx) => (
-                    <TableRow key={job.link || idx}>
-                      <TableCell>{job.title}</TableCell>
-                      <TableCell>{job.firma}</TableCell>
-                      <TableCell>{job.arbeitsort}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <a href={job.link} target="_blank" rel="noopener noreferrer">
-                            <Button variant="secondary" size="sm">Link</Button>
-                          </a>
-                          <Button variant="default" size="sm" className="text-white" onClick={() => onJobSelect(job)}>
-                            Übernehmen
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
+            {(() => {
+              const rowHeight = 48; // approximate row height
+              const headerHeight = 56; // header + padding
+              const minH = 240; // minimum height
+              const maxH = 720; // cap height
+              const computed = Math.min(maxH, Math.max(minH, headerHeight + jobs.length * rowHeight));
+              return (
+                <ScrollArea className="border rounded-md" style={{ height: computed }}>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Company</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {jobs.map((job, idx) => (
+                        <TableRow key={job.link || idx}>
+                          <TableCell>{job.title}</TableCell>
+                          <TableCell>{job.firma}</TableCell>
+                          <TableCell>{job.arbeitsort}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <a href={job.link} target="_blank" rel="noopener noreferrer">
+                                <Button variant="secondary" size="sm">Link</Button>
+                              </a>
+                              <Button variant="default" size="sm" className="text-white" onClick={() => onJobSelect(job)}>
+                                Übernehmen
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              );
+            })()}
           </div>
         </div>
       </CardContent>

@@ -105,7 +105,7 @@ async function scrapeAndPersist({ limitNew, onEvent }: {
     const jobElements = await jobItemsLocator.all();
     onEvent({ type: "step", step: 3, message: `Gefundene Treffer: ${jobElements.length}` });
 
-    const jobLinks: { link: string; title: string }[] = [];
+    let jobLinks: { link: string; title: string }[] = [];
     for (let i = 0; i < jobElements.length; i++) {
       const jobElement = jobElements[i];
       const jobLink = await jobElement.getAttribute("href").catch(() => null);
@@ -114,6 +114,11 @@ async function scrapeAndPersist({ limitNew, onEvent }: {
       if (jobLink) {
         jobLinks.push({ link: new URL(jobLink, targetUrl).toString(), title: jobTitle });
       }
+    }
+
+    // Apply hard cap on how many jobs to process in total if provided
+    if (typeof limitNew === 'number' && limitNew > 0) {
+      jobLinks = jobLinks.slice(0, limitNew);
     }
 
     let inserted = 0;
