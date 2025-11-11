@@ -3,6 +3,8 @@ import react from "@vitejs/plugin-react-swc";
 import tsconfigPaths from "vite-tsconfig-paths";
 import nodemailer from "nodemailer";
 import { VitePWA } from "vite-plugin-pwa";
+import { spawn } from "child_process";
+import path from "path";
 
 export default defineConfig({
   plugins: [
@@ -43,9 +45,63 @@ export default defineConfig({
       ]
     }),
     {
-      name: "email-sender-middleware",
+      name: "custom-middlewares",
       apply: "serve",
       configureServer(server) {
+        // Playwright runner middleware
+        server.middlewares.use("/api/run-playwright", (req, res) => {
+          if (req.method !== "POST") {
+            res.statusCode = 405;
+            res.end("Method Not Allowed");
+            return;
+          }
+
+          res.setHeader("Content-Type", "application/octet-stream");
+
+          const playwrightTestPath = path.resolve(__dirname, "scripts/arbeitsagentur.spec.ts");
+          const command = "npx";
+          const args = ["playwright", "test", playwrightTestPath];
+
+          const child = spawn(command, args, {
+            stdio: ["pipe", "pipe", "pipe"],
+            shell: true,
+          });
+
+          const send = (data: object) => {
+            res.write(JSON.stringify(data) + "\n");
+          };
+
+          child.stdout.on("data", (data) => {
+            const output = data.toString();
+            send({ status: output });
+
+            const screenshotMatch = output.match(/SCREENSHOT_PATH:(.*)/);
+            if (screenshotMatch && screenshotMatch[1]) {
+              const fs = require("fs");
+              const screenshotPath = screenshotMatch[1].trim();
+              if (fs.existsSync(screenshotPath)) {
+                const screenshotBase64 = fs.readFileSync(screenshotPath, "base64");
+                send({ screenshot: screenshotBase64 });
+              }
+            }
+          });
+
+          child.stderr.on("data", (data) => {
+            send({ status: `ERROR: ${data.toString()}` });
+          });
+
+          child.on("close", (code) => {
+            send({ status: `Playwright script finished with code ${code}` });
+            res.end();
+          });
+
+          child.on("error", (err) => {
+            send({ status: `Failed to start Playwright script: ${err.message}` });
+            res.end();
+          });
+        });
+
+        // Email sender middleware
         server.middlewares.use("/api/send-email", async (req, res) => {
           if (req.method !== "POST") {
             res.statusCode = 405;
@@ -163,8 +219,6 @@ export default defineConfig({
             res.end(JSON.stringify({ ok: false, error: message }));
           }
         });
-
-
       },
     },
   ],

@@ -787,7 +787,7 @@ Mark Baumann`
         </div>
 
         {/* Job Scraper */}
-        <PlaywrightRunner onJobSelect={handleJobSelect} />
+        <PlaywrightRunner />
 
         {/* API Configuration */}
         <Card className="w-full bg-white shadow-xl border border-blue-200 rounded-2xl text-black">

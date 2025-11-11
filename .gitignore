@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 scripts/arbeitsagentur.png
 test-results/.last-run.json
+.vercel
