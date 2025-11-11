@@ -136,7 +136,7 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
             <Button variant="ghost" onClick={stopScraping} disabled={!isRunning}>
               Stop
             </Button>
-            <Button variant="outline" onClick={loadSnapshots}>Refresh Snapshots</Button>
+            <Button variant="default" onClick={loadSnapshots}>Refresh Snapshots</Button>
           </div>
 
           {isRunning && (
