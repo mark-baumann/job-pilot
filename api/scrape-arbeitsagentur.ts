@@ -1,15 +1,6 @@
 import chromium from "@sparticuz/chromium";
-// Note: avoid importing Vercel types here to keep local dev simple
 import { chromium as playwrightChromium } from "playwright-core";
-
-interface ScraperEvent {
-  type: "step" | "data" | "error" | "complete" | "screenshot";
-  step?: number;
-  message?: string;
-  data?: any;
-  error?: string;
-  image?: string;
-}
+import { kv } from "@vercel/kv";
 
 interface JobData {
   title: string;
@@ -19,85 +10,44 @@ interface JobData {
   arbeitsort?: string;
 }
 
-// Simple in-memory cache
-let cachedJobs: JobData[] = [];
-let cacheTimestamp = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+interface CacheData {
+  timestamp: number;
+  jobs: JobData[];
+}
 
-async function scrapeArbeitsagenturJob(
-  onProgress: (event: ScraperEvent) => void
-) {
+async function scrapeAllJobs(): Promise<JobData[]> {
   let browser = null;
+  const jobs: JobData[] = [];
+
   try {
-    // Check cache
-    const now = Date.now();
-    const hadCache = cachedJobs.length > 0 && (now - cacheTimestamp) < CACHE_DURATION;
-    if (hadCache) {
-      onProgress({
-        type: "step",
-        step: 1,
-        message: `Cache gefunden! ${cachedJobs.length} Jobs geladen. (Suche nach neuen Jobs...)`,
-      });
-
-      // Send all cached jobs first
-      for (const job of cachedJobs) {
-        onProgress({
-          type: "data",
-          data: job,
-        });
-      }
-      // Continue to scrape live site to find any new jobs and only send those
-    }
-
     const executablePath = await chromium.executablePath();
     if (typeof executablePath !== "string") {
       throw new Error(
         `Invalid executablePath, expected string but got ${typeof executablePath}`
       );
     }
+
     browser = await playwrightChromium.launch({
       args: (chromium as any).args || [],
       executablePath: executablePath,
-      // sparticuz chromium may expose headless as runtime flag; cast to any to avoid TS errors
       headless: (chromium as any).headless ?? true,
     });
 
     const context = await browser.newContext();
     const page = await context.newPage();
 
-    // Schritt 1: Webseite aufrufen
-    onProgress({
-      type: "step",
-      step: 1,
-      message: "Webseite wird aufgerufen...",
-    });
-
     const targetUrl =
       "https://www.arbeitsagentur.de/jobsuche/suche?berufsfeld=Softwareentwicklung%20und%20Programmierung&angebotsart=1&wo=85256%20Vierkirchen,%20Oberbayern&umkreis=25";
 
+    console.log("Scraping: Loading page...");
     try {
       await page.goto(targetUrl, { waitUntil: "networkidle", timeout: 30000 });
     } catch (e) {
       console.warn("Timeout beim Laden der Seite, versuche weiterzumachen...");
     }
 
-    // Screenshot der Suchergebnisse
-    let screenshot1 = await page.screenshot({ path: undefined }).catch(() => null);
-    if (screenshot1) {
-      const base64 = Buffer.from(screenshot1).toString('base64');
-      onProgress({
-        type: "screenshot",
-        image: `data:image/png;base64,${base64}`,
-      });
-    }
-
-    // Schritt 2: Cookie-Dialog wegklicken
-    onProgress({
-      type: "step",
-      step: 2,
-      message: "Cookie-Dialog wird wegeklickt...",
-    });
-
+    // Cookie-Dialog wegklicken
+    console.log("Scraping: Closing cookie dialog...");
     try {
       const acceptButton = page.getByTestId(
         "bahf-cookie-disclaimer-btn-alle"
@@ -114,23 +64,8 @@ async function scrapeArbeitsagenturJob(
       console.log("Cookie-Dialog nicht gefunden oder bereits geschlossen");
     }
 
-    // Screenshot nach Cookie-Dialog
-    let screenshot2 = await page.screenshot({ path: undefined }).catch(() => null);
-    if (screenshot2) {
-      const base64 = Buffer.from(screenshot2).toString('base64');
-      onProgress({
-        type: "screenshot",
-        image: `data:image/png;base64,${base64}`,
-      });
-    }
-
-    // Schritt 3: Jobs laden
-    onProgress({
-      type: "step",
-      step: 3,
-      message: "Jobs werden geladen...",
-    });
-
+    // Jobs laden
+    console.log("Scraping: Loading jobs...");
     try {
       const jobItemsLocator = page.locator('a[id^="ergebnisliste-item-"]');
       await jobItemsLocator
@@ -139,29 +74,11 @@ async function scrapeArbeitsagenturJob(
         .catch(() => {});
       const jobElements = await jobItemsLocator.all();
 
-      onProgress({
-        type: "step",
-        step: 3,
-        message: `${jobElements.length} Jobs gefunden!`,
-      });
+      console.log(`Scraping: Found ${jobElements.length} jobs`);
 
-      // Screenshot der Jobliste
-      let screenshot3 = await page.screenshot({ path: undefined }).catch(() => null);
-      if (screenshot3) {
-        const base64 = Buffer.from(screenshot3).toString('base64');
-        onProgress({
-          type: "screenshot",
-          image: `data:image/png;base64,${base64}`,
-        });
-      }
-
-      // Schritt 4: Alle Jobs durchgehen und Daten extrahieren
-  const totalJobs = jobElements.length;
-  // Do NOT reset cachedJobs here - we want to keep existing cache and only add new jobs
-
-      // Sammle zuerst alle Job-Links und Titel, bevor wir die Seite verlassen
+      // Sammle zuerst alle Job-Links und Titel
       const jobLinks: { link: string; title: string }[] = [];
-      for (let i = 0; i < totalJobs; i++) {
+      for (let i = 0; i < jobElements.length; i++) {
         const jobElement = jobElements[i];
         const jobLink = await jobElement
           .getAttribute("href")
@@ -171,7 +88,6 @@ async function scrapeArbeitsagenturJob(
           .innerText()
           .catch(() => "Titel nicht verfügbar");
 
-        // Entferne "1. Ergebnis", "2. Ergebnis" etc. und Doppelpunkte
         jobTitle = jobTitle
           .replace(/^\d+\.\s*Ergebnis\s*/, "")
           .replace(/^:\s*/, "")
@@ -185,21 +101,12 @@ async function scrapeArbeitsagenturJob(
         }
       }
 
-      // Jetzt gehe durch alle gesammelten Links und extrahiere Daten
-      let newJobsCount = 0; // Zähler für neue (nicht gecachte) Jobs
+      // Gehe durch alle Jobs und extrahiere Daten
+      console.log(`Scraping: Processing ${jobLinks.length} jobs...`);
       for (let i = 0; i < jobLinks.length; i++) {
         const { link: absoluteLink, title: jobTitle } = jobLinks[i];
 
-        // Berechne die globale Job-Nummer basierend auf bereits geCachten Jobs
-        const alreadyInCache = cachedJobs.some((j) => j.link === absoluteLink);
-        newJobsCount = alreadyInCache ? newJobsCount : newJobsCount + 1;
-        const globalJobNumber = cachedJobs.length + newJobsCount;
-
-        onProgress({
-          type: "step",
-          step: 4,
-          message: `Job ${globalJobNumber}/25 wird geöffnet...`,
-        });
+        console.log(`Scraping: Processing job ${i + 1}/${jobLinks.length}`);
 
         try {
           await page.goto(absoluteLink, {
@@ -210,21 +117,20 @@ async function scrapeArbeitsagenturJob(
           console.warn("Timeout beim Laden der Job-Seite");
         }
 
-        // Warte länger, damit Seite vollständig geladen ist
         await page.waitForTimeout(1500);
 
         let jobDescription = "";
         let firma = "";
         let arbeitsort = "";
 
-        // Extrahiere Beschreibung - scrolle zum Element für besseres Laden
+        // Extrahiere Beschreibung
         try {
           const descElement = page.locator(
             'xpath=//*[@id="detail-beschreibung-beschreibung"]'
           );
           await descElement.scrollIntoViewIfNeeded().catch(() => {});
           await page.waitForTimeout(500);
-          
+
           const isVisible = await descElement
             .isVisible({ timeout: 3000 })
             .catch(() => false);
@@ -234,7 +140,7 @@ async function scrapeArbeitsagenturJob(
               .catch(() => "");
           }
         } catch (e) {
-          console.log("Beschreibung nicht mit XPath gefunden, versuche Fallback");
+          console.log("Beschreibung nicht mit XPath gefunden");
         }
 
         // Fallback für Beschreibung
@@ -258,7 +164,7 @@ async function scrapeArbeitsagenturJob(
           );
           await firmaElement.scrollIntoViewIfNeeded().catch(() => {});
           await page.waitForTimeout(300);
-          
+
           const isVisible = await firmaElement
             .isVisible({ timeout: 2000 })
             .catch(() => false);
@@ -266,7 +172,6 @@ async function scrapeArbeitsagenturJob(
             firma = await firmaElement
               .innerText({ timeout: 3000 })
               .catch(() => "");
-            // Entferne "Arbeitgeber:" Präfix
             firma = firma
               .replace(/^Arbeitgeber:\s*/, "")
               .replace(/^:\s*/, "")
@@ -283,7 +188,7 @@ async function scrapeArbeitsagenturJob(
           );
           await arbeitsortElement.scrollIntoViewIfNeeded().catch(() => {});
           await page.waitForTimeout(300);
-          
+
           const isVisible = await arbeitsortElement
             .isVisible({ timeout: 2000 })
             .catch(() => false);
@@ -291,14 +196,12 @@ async function scrapeArbeitsagenturJob(
             arbeitsort = await arbeitsortElement
               .innerText({ timeout: 3000 })
               .catch(() => "");
-            // Entferne führende Doppelpunkte
             arbeitsort = arbeitsort.replace(/^:\s*/, "").trim();
           }
         } catch (e) {
           console.log("Arbeitsort nicht mit XPath gefunden");
         }
 
-        // Sende die Jobdaten
         const jobData: JobData = {
           title: jobTitle,
           description: jobDescription.trim(),
@@ -307,57 +210,17 @@ async function scrapeArbeitsagenturJob(
           arbeitsort: arbeitsort.trim(),
         };
 
-        // Check if job already exists in cache (by link) and skip if so
-        const already = cachedJobs.some((j) => j.link === jobData.link);
-        if (!already) {
-          cachedJobs.push(jobData);
-
-          onProgress({
-            type: "data",
-            data: jobData,
-          });
-        }
-
-        // Screenshot der Job-Detail-Seite
-        let jobScreenshot = await page.screenshot({ path: undefined }).catch(() => null);
-        if (jobScreenshot) {
-          const base64 = Buffer.from(jobScreenshot).toString('base64');
-          onProgress({
-            type: "screenshot",
-            image: `data:image/png;base64,${base64}`,
-          });
-        }
-
-        onProgress({
-          type: "step",
-          step: 5,
-          message: `✅ Job ${globalJobNumber}/25 extrahiert`,
-        });
+        jobs.push(jobData);
       }
 
-      // Update cache timestamp
-      cacheTimestamp = Date.now();
+      console.log(`Scraping: Successfully scraped ${jobs.length} jobs`);
     } catch (e) {
       console.error("Fehler beim Scrapen der Jobs:", e);
     }
 
-    // Abschluss
-    onProgress({
-      type: "complete",
-      message: `Scraping abgeschlossen! ${cachedJobs.length} Jobs gefunden.`,
-    });
-
-    return {
-      success: true,
-      message: "Scraping erfolgreich abgeschlossen",
-    };
+    await context.close();
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("Scraping error:", errorMessage);
-    onProgress({
-      type: "error",
-      error: errorMessage,
-    });
+    console.error("Scraping error:", error);
     throw error;
   } finally {
     if (browser) {
@@ -368,33 +231,51 @@ async function scrapeArbeitsagenturJob(
       }
     }
   }
+
+  return jobs;
 }
 
 export default async function handler(req: any, res: any) {
-  if (req.method !== "GET") {
-    res.status(405).end("Method Not Allowed");
-    return;
-  }
-
-  // Set SSE headers
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.setHeader("Access-Control-Allow-Origin", "*");
-
   try {
-    await scrapeArbeitsagenturJob((event: ScraperEvent) => {
-      res.write(`data: ${JSON.stringify(event)}\n\n`);
+    console.log("Manual scrape job started...");
+    const jobs = await scrapeAllJobs();
+
+    const timestamp = Date.now();
+    const cacheData: CacheData = {
+      timestamp,
+      jobs,
+    };
+
+    // Save snapshot under a timestamped key and update an index list
+    const snapshotKey = `jobs-cache:${timestamp}`;
+    await kv.set(snapshotKey, JSON.stringify(cacheData));
+
+    // Update latest pointer for backward compatibility
+    await kv.set("jobs-cache", JSON.stringify(cacheData));
+
+    try {
+      const existing = await kv.get("jobs-cache-index");
+      const index = typeof existing === "string" ? JSON.parse(existing) : existing || [];
+      // Prepend new snapshot metadata
+      const meta = { timestamp, count: jobs.length };
+      const next = [meta, ...(Array.isArray(index) ? index : [])].slice(0, 50); // keep last 50
+      await kv.set("jobs-cache-index", JSON.stringify(next));
+    } catch (e) {
+      console.warn("Failed to update jobs-cache-index", e);
+    }
+
+    console.log(`Manual scrape job completed: ${jobs.length} jobs saved to KV (${snapshotKey})`);
+
+    res.status(200).json({
+      success: true,
+      message: `Scraping completed: ${jobs.length} jobs saved`,
+      timestamp,
     });
-    res.end();
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    res.write(
-      `data: ${JSON.stringify({
-        type: "error",
-        error: errorMessage,
-      })}\n\n`
-    );
-    res.end();
+    console.error("Manual scrape job error:", error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }
