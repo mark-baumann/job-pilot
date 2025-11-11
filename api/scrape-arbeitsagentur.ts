@@ -1,6 +1,5 @@
 import chromium from "@sparticuz/chromium";
 import { chromium as playwrightChromium } from "playwright-core";
-import { kv } from "@vercel/kv";
 import { Pool } from "pg";
 
 interface JobData {
@@ -236,22 +235,6 @@ export default async function handler(req: any, res: any) {
       sseWrite(res, { type: "step", step: 0, message: "Starte Scraper..." });
       const { processed, inserted, skipped, jobs } = await scrapeAndPersist({ limitNew, onEvent });
 
-      // Optional: also keep KV snapshot for browsing history
-      try {
-        const timestamp = Date.now();
-        const cacheData: CacheData = { timestamp, jobs };
-        const snapshotKey = `jobs-cache:${timestamp}`;
-        await kv.set(snapshotKey, JSON.stringify(cacheData));
-        await kv.set("jobs-cache", JSON.stringify(cacheData));
-        const existing = await kv.get("jobs-cache-index");
-        const index = typeof existing === "string" ? JSON.parse(existing) : existing || [];
-        const meta = { timestamp, count: jobs.length };
-        const next = [meta, ...(Array.isArray(index) ? index : [])].slice(0, 50);
-        await kv.set("jobs-cache-index", JSON.stringify(next));
-      } catch (e) {
-        sseWrite(res, { type: "error", error: "Snapshot speichern fehlgeschlagen" });
-      }
-
       sseWrite(res, { type: "complete", message: `Verarbeitet: ${processed}, neu: ${inserted}, übersprungen: ${skipped}`, processed, inserted, skipped });
     } catch (error: any) {
       sseWrite(res, { type: "error", error: error?.message || String(error) });
@@ -263,25 +246,12 @@ export default async function handler(req: any, res: any) {
 
   // Fallback: non-streaming (e.g. cron POST)
   try {
-    const { processed, inserted, skipped, jobs } = await scrapeAndPersist({
+    const { processed, inserted, skipped } = await scrapeAndPersist({
       limitNew,
       onEvent: () => {},
     });
 
-    const timestamp = Date.now();
-    const cacheData: CacheData = { timestamp, jobs };
-    const snapshotKey = `jobs-cache:${timestamp}`;
-    await kv.set(snapshotKey, JSON.stringify(cacheData));
-    await kv.set("jobs-cache", JSON.stringify(cacheData));
-    try {
-      const existing = await kv.get("jobs-cache-index");
-      const index = typeof existing === "string" ? JSON.parse(existing) : existing || [];
-      const meta = { timestamp, count: jobs.length };
-      const next = [meta, ...(Array.isArray(index) ? index : [])].slice(0, 50);
-      await kv.set("jobs-cache-index", JSON.stringify(next));
-    } catch {}
-
-    res.status(200).json({ success: true, processed, inserted, skipped, timestamp });
+    res.status(200).json({ success: true, processed, inserted, skipped });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error?.message || String(error) });
   }

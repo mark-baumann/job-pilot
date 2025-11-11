@@ -7,6 +7,20 @@ import { spawn } from "child_process";
 import path from "path";
 
 export default defineConfig({
+  optimizeDeps: {
+    // Verhindert, dass serverseitige Pakete von Vite vorgebundled werden
+    exclude: [
+      "playwright-core",
+      "@sparticuz/chromium",
+      "pg",
+      "nodemailer",
+      "@vercel/kv",
+    ],
+  },
+  ssr: {
+    // Stellt sicher, dass diese Pakete als externe Node-Deps behandelt werden
+    external: ["pg", "playwright-core", "@sparticuz/chromium", "nodemailer"],
+  },
   plugins: [
     react(),
     tsconfigPaths(),
@@ -48,6 +62,28 @@ export default defineConfig({
       name: "custom-middlewares",
       apply: "serve",
       configureServer(server) {
+        // Dev-API: scrape-arbeitsagentur (SSE)
+        server.middlewares.use("/api/scrape-arbeitsagentur", async (req, res) => {
+          if (req.method !== "GET" && req.method !== "POST") {
+            res.statusCode = 405;
+            res.end("Method Not Allowed");
+            return;
+          }
+          const mod = await server.ssrLoadModule(path.resolve(__dirname, "api/scrape-arbeitsagentur.ts"));
+          return (mod as any).default(req, res);
+        });
+
+        // Dev-API: list-jobs (Postgres)
+        server.middlewares.use("/api/list-jobs", async (req, res) => {
+          if (req.method !== "GET") {
+            res.statusCode = 405;
+            res.end("Method Not Allowed");
+            return;
+          }
+          const mod = await server.ssrLoadModule(path.resolve(__dirname, "api/list-jobs.ts"));
+          return (mod as any).default(req, res);
+        });
+
         // Playwright runner middleware
         server.middlewares.use("/api/run-playwright", (req, res) => {
           if (req.method !== "POST") {

@@ -1,14 +1,14 @@
 import { Pool } from "pg";
 
 export default async function handler(req: any, res: any) {
-  // Backwards-compat Endpoint: liefert jetzt alle Jobs aus Postgres
   try {
     const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
     if (!connectionString) {
-      return res.status(500).json({ error: "POSTGRES_URL is not set", timestamp: null, jobs: [] });
+      return res.status(500).json({ error: "POSTGRES_URL is not set", jobs: [] });
     }
     const pool = new Pool({ connectionString, max: 1 });
 
+    // ensure table exists
     await pool.query(`
       create table if not exists jobs (
         id bigserial primary key,
@@ -29,9 +29,9 @@ export default async function handler(req: any, res: any) {
 
     await pool.end();
 
-    res.status(200).json({ timestamp: null, jobs: result.rows });
+    return res.status(200).json({ jobs: result.rows });
   } catch (error: any) {
-    console.error("get-jobs (pg) error:", error);
-    res.status(500).json({ error: error?.message || "Unknown error", timestamp: null, jobs: [] });
+    console.error("list-jobs error", error);
+    return res.status(500).json({ error: error?.message || String(error), jobs: [] });
   }
 }
