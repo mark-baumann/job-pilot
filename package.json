@@ -57,6 +57,7 @@
         "next-themes": "^0.3.0",
         "nodemailer": "^7.0.10",
         "openai": "^5.9.0",
+        "pg": "^8.11.5",
         "pizzip": "^3.2.0",
         "playwright-core": "^1.56.1",
         "react": "^18.3.1",

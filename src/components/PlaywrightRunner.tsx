@@ -21,6 +21,8 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
   const [jobs, setJobs] = useState<Job[]>([]);
   const [progress, setProgress] = useState<number>(0);
 
+  const [maxNew, setMaxNew] = useState<number>(10);
+
   const startScraping = () => {
     if (isRunning) return;
     setIsRunning(true);
@@ -29,7 +31,8 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
     setProgress(0);
 
     try {
-      const es = new EventSource("/api/scrape-arbeitsagentur");
+      const url = maxNew && maxNew > 0 ? `/api/scrape-arbeitsagentur?limit=${maxNew}` : "/api/scrape-arbeitsagentur";
+      const es = new EventSource(url);
       esRef.current = es;
 
       es.onmessage = (ev) => {
@@ -130,6 +133,16 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
       <CardContent>
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-muted-foreground">Neue Treffer laden:</label>
+              <input
+                type="number"
+                min={1}
+                value={maxNew}
+                onChange={(e) => setMaxNew(Math.max(1, Number(e.target.value) || 1))}
+                className="w-24 h-9 px-2 border rounded-md"
+              />
+            </div>
             <Button onClick={startScraping} disabled={isRunning}>
               {isRunning ? "Scraping..." : "Scrape Arbeitsagentur"}
             </Button>
@@ -143,6 +156,7 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
             <div className="space-y-2">
               <p className="text-sm">{status}</p>
               <Progress value={progress} className="h-2" />
+              <p className="text-xs text-muted-foreground">Nur neue Jobs werden hinzugefügt; bestehende werden übersprungen.</p>
             </div>
           )}
 
