@@ -50,11 +50,7 @@ interface AnalysisResult {
   finalApplication: string;
 }
 
-interface ApplicationGeneratorProps {
-  selectedJob: Job | null;
-}
-
-export default function ApplicationGenerator({ selectedJob }: ApplicationGeneratorProps) {
+export default function ApplicationGenerator() {
   // API Configuration
   const [apiKey, setApiKey] = useState("");
   const [cloudConvertApiKey, setCloudConvertApiKey] = useState("");
@@ -87,26 +83,7 @@ export default function ApplicationGenerator({ selectedJob }: ApplicationGenerat
     localStorage.setItem("job-description", job.description || "");
   };
 
-  useEffect(() => {
-    if (selectedJob) {
-      setTitleInput(selectedJob.title);
-      setFirmaInput(selectedJob.company || "");
-      // Fetch job description
-      if (selectedJob.link) {
-        setJobDescription("Loading job description...");
-        fetch(`/api/get-job-details?url=${encodeURIComponent(selectedJob.link)}`)
-          .then(res => res.json())
-          .then(data => {
-            if (data.description) {
-              setJobDescription(data.description);
-            } else {
-              setJobDescription("Could not load job description.");
-            }
-          })
-          .catch(() => setJobDescription("Could not load job description."));
-      }
-    }
-  }, [selectedJob]);
+  
 
   // Load persisted form inputs
   useEffect(() => {
@@ -787,7 +764,7 @@ Mark Baumann`
         </div>
 
         {/* Job Scraper */}
-        <PlaywrightRunner />
+        <PlaywrightRunner onJobSelect={handleJobSelect} />
 
         {/* API Configuration */}
         <Card className="w-full bg-white shadow-xl border border-blue-200 rounded-2xl text-black">
