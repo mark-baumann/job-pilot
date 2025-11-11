@@ -147,28 +147,42 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
               return (
                 <ScrollArea className="border rounded-md" style={{ height: computed }}>
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Title</TableHead>
-                        <TableHead>Company</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Action</TableHead>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Title</TableHead>
+                    <TableHead>Company</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Link</TableHead>
+                    <TableHead>Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {jobs.map((job, idx) => {
+                    const full = (job.description || "").replace(/\s+/g, " ").trim();
+                    const short = full.length > 220 ? full.slice(0, 220) + "…" : full;
+                    return (
+                      <TableRow key={job.link || idx} className="hover:bg-accent/40">
+                        <TableCell className="font-medium">{job.title}</TableCell>
+                        <TableCell>{job.firma}</TableCell>
+                        <TableCell>{job.arbeitsort}</TableCell>
+                        <TableCell title={full} className="align-top text-xs text-muted-foreground max-w-[520px]">
+                          {short || <span className="italic text-muted-foreground">(keine Beschreibung)</span>}
+                        </TableCell>
+                        <TableCell>
+                          <Button asChild variant="link" size="sm">
+                            <a href={job.link} target="_blank" rel="noopener noreferrer">Öffnen</a>
+                          </Button>
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="outline" size="sm" onClick={() => onJobSelect(job)}>
+                            Select
+                          </Button>
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {jobs.map((job, idx) => (
-                        <TableRow key={job.link || idx}>
-                          <TableCell>{job.title}</TableCell>
-                          <TableCell>{job.firma}</TableCell>
-                          <TableCell>{job.arbeitsort}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <a href={job.link} target="_blank" rel="noopener noreferrer">
-                                <Button variant="secondary" size="sm">Link</Button>
-                              </a>
-                              <Button variant="default" size="sm" className="text-white" onClick={() => onJobSelect(job)}>
-                                Übernehmen
-                              </Button>
+                    );
+                  })}
+                </TableBody>
                             </div>
                           </TableCell>
                         </TableRow>
