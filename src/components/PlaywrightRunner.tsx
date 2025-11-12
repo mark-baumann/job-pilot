@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { toast } from "@/hooks/use-toast";
 
+import { Info } from "lucide-react";
 export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = ({ onJobSelect }) => {
   const [status, setStatus] = useState<string>("");
   const [isRunning, setIsRunning] = useState(false);
@@ -151,42 +152,39 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                 </TableHeader>
                 <TableBody>
                   {jobs.map((job, idx) => {
-                    const full = (job.description || "").replace(/\s+/g, " ").trim();
-                    const short = full.length > 280 ? full.slice(0, 280) + "…" : full;
                     return (
-                      <React.Fragment key={job.link || idx}>
-                        <TableRow className="odd:bg-white even:bg-muted/30 hover:bg-accent/40 border-t-2 border-muted">
-                          <TableCell className="font-semibold align-top break-words">{job.title}</TableCell>
-                          <TableCell className="align-top break-words">{job.firma}</TableCell>
-                          <TableCell className="align-top break-words">{job.arbeitsort}</TableCell>
-                          <TableCell className="align-top space-y-2">
-                            <div className="flex flex-col items-start gap-2">
-                              <Button variant="default" size="sm" className="text-white hover:text-white w-20" onClick={() => onJobSelect(job)}>
-                                Apply
-                              </Button>
-                              <Button asChild variant="link" size="sm" className="p-0 h-auto">
-                                <a href={job.link} target="_blank" rel="noopener noreferrer">Öffnen</a>
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                        <TableRow className="odd:bg-white even:bg-muted/30 border-b-2 border-muted">
-                          <TableCell colSpan={4} className="pt-0 pb-3">
-                            <div className="text-sm text-black whitespace-pre-wrap break-words">
-                              {(expanded[job.link] ? full : short) || <span className="italic text-muted-foreground">(keine Beschreibung)</span>}
-                              {full && full.length > short.length && (
-                                <div className="mt-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 px-2 text-black hover:text-black"
-                                    onClick={() => setExpanded((prev) => ({ ...prev, [job.link]: !prev[job.link] }))}
-                                  >
-                                    {expanded[job.link] ? "Weniger" : "Mehr"}
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
+                      <TableRow key={job.link || idx} className="odd:bg-white even:bg-muted/30 hover:bg-accent/40 border-b">
+                        <TableCell className="font-semibold align-top break-words">
+                          <div className="flex items-center gap-1">
+                            <span>{job.title}</span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 shrink-0"
+                              onClick={() => toast({
+                                title: `Beschreibung: ${job.title}`,
+                                description: (
+                                  <pre className="mt-2 max-h-[400px] overflow-y-auto w-full rounded-md bg-slate-950 p-4 text-white whitespace-pre-wrap">
+                                    {job.description || "Keine Beschreibung verfügbar."}
+                                  </pre>
+                                ),
+                                duration: 20000,
+                              })}
+                            >
+                              <Info className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell className="align-top break-words">{job.firma}</TableCell>
+                        <TableCell className="align-top break-words">{job.arbeitsort}</TableCell>
+                        <TableCell className="align-top space-y-2">
+                          <div className="flex flex-col items-start gap-2">
+                            <Button variant="default" size="sm" className="text-white hover:text-white w-20" onClick={() => onJobSelect(job)}>
+                              Apply
+                            </Button>
+                            <Button asChild variant="link" size="sm" className="p-0 h-auto">
+                              <a href={job.link} target="_blank" rel="noopener noreferrer">Öffnen</a>
+                            </Button>
                           </TableCell>
                         </TableRow>
                       </React.Fragment>
@@ -198,33 +196,34 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
             {/* Smartphone: Karten-Layout */}
             <div className="md:hidden space-y-3">
               {jobs.map((job, idx) => {
-                const full = (job.description || "").replace(/\s+/g, " ").trim();
-                const short = full.length > 220 ? full.slice(0, 220) + "…" : full;
                 return (
                   <div key={job.link || idx} className="rounded-lg border p-3 bg-white">
-                    <div className="font-semibold mb-1 break-words">{job.title}</div>
-                    <div className="text-xs text-muted-foreground mb-1 break-words">{job.firma} · {job.arbeitsort}</div>
-                    <div className="text-sm text-black whitespace-pre-wrap break-words">
-                      {(expanded[job.link] ? full : short) || <span className="italic text-muted-foreground">(keine Beschreibung)</span>}
-                      {full && full.length > short.length && (
-                        <div className="mt-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-black hover:text-black"
-                            onClick={() => setExpanded((prev) => ({ ...prev, [job.link]: !prev[job.link] }))}
-                          >
-                            {expanded[job.link] ? "Weniger" : "Mehr"}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <Button asChild variant="link" size="sm">
-                        <a href={job.link} target="_blank" rel="noopener noreferrer">Öffnen</a>
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <span className="font-semibold break-words">{job.title}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 shrink-0"
+                        onClick={() => toast({
+                          title: `Beschreibung: ${job.title}`,
+                          description: (
+                            <pre className="mt-2 max-h-[300px] overflow-y-auto w-full rounded-md bg-slate-950 p-4 text-white whitespace-pre-wrap">
+                              {job.description || "Keine Beschreibung verfügbar."}
+                            </pre>
+                          ),
+                          duration: 20000,
+                        })}
+                      >
+                        <Info className="h-4 w-4" />
                       </Button>
+                    </div>
+                    <div className="text-xs text-muted-foreground mb-1 break-words">{job.firma} · {job.arbeitsort}</div>
+                    <div className="mt-2 flex items-center gap-2">
                       <Button variant="default" size="sm" className="text-white hover:text-white" onClick={() => onJobSelect(job)}>
                         Apply
+                      </Button>
+                      <Button asChild variant="link" size="sm">
+                        <a href={job.link} target="_blank" rel="noopener noreferrer">Öffnen</a>
                       </Button>
                     </div>
                   </div>
