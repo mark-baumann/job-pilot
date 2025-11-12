@@ -36,10 +36,6 @@ interface CoverLetterEditorProps {
   sendZeugnisse: boolean;
   sendCv: boolean;
   onSendOptionChange: (field: "docx" | "pdf" | "zeugnisse" | "cv", value: boolean) => void;
-  onZeugnisseUpload: (file: File) => void;
-  zeugnisseFileName?: string;
-  onLoadDemoZeugnisCompressed: () => void;
-  onLoadDemoZeugnisse: () => void;
   onCvUploadClick?: () => void;
   useCompressedZeugnis?: boolean;
   onUseCompressedZeugnisChange?: (v: boolean) => void;
@@ -203,11 +199,11 @@ export default function CoverLetterEditor({
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="send-zeugnisse" checked={sendZeugnisse} onCheckedChange={(v) => onSendOptionChange("zeugnisse", Boolean(v))} />
-                <Label htmlFor="send-zeugnisse">Zeugnisse anhängen</Label>
+                <Label htmlFor="send-zeugnisse">Zeugnis anhängen</Label>
               </div>
-              <div className="flex items-center gap-2 ml-4">
+              <div className="flex items-center gap-2">
                 <Checkbox id="use-compressed-zeugnis" checked={useCompressedZeugnis || false} onCheckedChange={(v) => onUseCompressedZeugnisChange && onUseCompressedZeugnisChange(Boolean(v))} />
-                <Label htmlFor="use-compressed-zeugnis">Komprimiertes Zeugnis verwenden</Label>
+                <Label htmlFor="use-compressed-zeugnis">Compressed Zeugnis anhängen</Label>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="send-cv" checked={sendCv} onCheckedChange={(v) => onSendOptionChange("cv", Boolean(v))} />
@@ -215,27 +211,6 @@ export default function CoverLetterEditor({
               </div>
             </div>
           </div>
-
-          {sendZeugnisse && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <Label htmlFor="zeugnisse-upload">Zeugnisse (PDF)</Label>
-                  <Input id="zeugnisse-upload" type="file" accept=".pdf" className="bg-white border-blue-200" onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) onZeugnisseUpload(f);
-                  }} />
-                </div>
-                <Button type="button" variant="outline" className="self-end bg-white text-black border-blue-200" onClick={onLoadDemoZeugnisse}>
-                  Marks Zeugnisse
-                </Button>
-                <Button type="button" variant="outline" className="self-end bg-white text-black border-blue-200" onClick={onLoadDemoZeugnisCompressed}>
-                  Marks Zeugnis Compressed
-                </Button>
-              </div>
-              {zeugnisseFileName && <p className="text-sm text-muted-foreground mt-1">Ausgewählte Datei: {zeugnisseFileName}</p>}
-            </div>
-          )}
 
           <div className="space-y-2 mt-2">
             <Label htmlFor="email-subject">Betreff</Label>

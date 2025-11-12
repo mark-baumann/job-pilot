@@ -571,7 +571,6 @@ Mit freundlichen Grüßen`;
   const [sendPdf, setSendPdf] = useState(true);
   const [sendZeugnisse, setSendZeugnisse] = useState(true);
   const [sendCv, setSendCv] = useState(true);
-  const [zeugnisseFile, setZeugnisseFile] = useState<File | null>(null);
   const [useCompressedZeugnis, setUseCompressedZeugnis] = useState(false);
   const [isEmailSending, setIsEmailSending] = useState(false);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
@@ -827,13 +826,16 @@ Mark Baumann`
               console.error('Could not fetch compressed zeugnis', e);
             }
           } else {
-            zeugnisBlob = zeugnisseFile; // Use uploaded file if present
-            if (!zeugnisBlob) { // Fallback to demo file
+            try {
               const resp = await fetch('/zeugnisse.pdf');
-              if (resp.ok) zeugnisBlob = await resp.blob();
+              if (resp.ok) {
+                zeugnisBlob = await resp.blob();
+                zeugnisFilename = 'Marks_Zeugnis.pdf';
+                zeugnisContentType = zeugnisBlob.type || 'application/pdf';
+              }
+            } catch (e) {
+              console.error('Could not fetch zeugnis', e);
             }
-            zeugnisFilename = zeugnisseFile?.name || 'Marks_Zeugnis.pdf';
-            zeugnisContentType = zeugnisBlob?.type || 'application/pdf'; // Ensure correct content type
           }
 
           if (zeugnisBlob) {
@@ -1540,28 +1542,8 @@ Mark Baumann`
                 if (field === "cv") setSendCv(value);
               }}
               onCvUploadClick={() => document.getElementById('resume-upload')?.click()}
-              onZeugnisseUpload={(file) => setZeugnisseFile(file)}
-              zeugnisseFileName={zeugnisseFile?.name}
-              useCompressedZeugnis={useCompressedZeugnis} // Pass the state
+              useCompressedZeugnis={useCompressedZeugnis}
               onUseCompressedZeugnisChange={(v) => setUseCompressedZeugnis(v)}
-              onLoadDemoZeugnisse={async () => {
-                try {
-                  const resp = await fetch('/zeugnisse.pdf');
-                  if (!resp.ok) throw new Error('zeugnisse.pdf nicht gefunden');
-                  const blob = await resp.blob();
-                  const file = new File([blob], 'zeugnis.pdf', { type: 'application/pdf' });
-                  setZeugnisseFile(file);
-                  setUseCompressedZeugnis(false); // Make sure standard is selected
-                  toast({ title: 'Zeugnisse geladen', description: 'Demodatei zeugnis.pdf geladen.' });
-                } catch (e) {
-                  toast({ title: 'Fehler', description: String(e), variant: 'destructive' });
-                }
-              }}
-              onLoadDemoZeugnisCompressed={() => {
-                setUseCompressedZeugnis(true);
-                setZeugnisseFile(null);
-                toast({ title: 'Komprimiertes Zeugnis ausgewählt', description: 'Beim Senden wird "Marks_Zeugnis_Compressed.pdf" angehängt.' });
-              }}
               onSendEmail={handleSendEmail}
               isEmailSending={isEmailSending}
               onReset={handleResetApplication}
