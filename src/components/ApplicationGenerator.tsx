@@ -91,7 +91,7 @@ export default function ApplicationGenerator() {
 
   
 
-  // Load persisted form inputs
+  // Load persisted form inputs and check for saved password
   useEffect(() => {
     try {
       const jd = localStorage.getItem("job-description");
@@ -104,6 +104,23 @@ export default function ApplicationGenerator() {
       if (a) setAdresseInput(a);
       if (t) setTitleInput(t);
       if (cl) setCurrentCoverLetter(cl);
+      
+      // Check for saved password in cookie
+      const getCookie = (name: string) => {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) {
+          return parts.pop()?.split(';').shift();
+        }
+        return null;
+      };
+      
+      const savedPassword = getCookie('app-password');
+      if (savedPassword) {
+        setAppPassword(savedPassword);
+        // Auto-unlock if password is saved
+        handleUnlockAppPassword();
+      }
     } catch {}
   }, []);
 
@@ -237,6 +254,12 @@ export default function ApplicationGenerator() {
       
       if (valid) {
         setIsAppPasswordUnlocked(true);
+        
+        // Save password in cookie permanently (expires in 1 year for browser compatibility)
+        const expires = new Date();
+        expires.setFullYear(expires.getFullYear() + 1);
+        document.cookie = `app-password=${appPassword}; expires=${expires.toUTCString()}; path=/; secure; samesite=strict`;
+        
         toast({ title: "Zugriff gewährt", description: "API-Schlüssel-Bereich entsperrt." });
         loadOpenaiKeys(); // Load keys after successful unlock
         loadCloudConvertKeys();
@@ -697,10 +720,8 @@ Mark Baumann`
 
       if (sendCv) {
         let cvBlob: Blob | null = null;
-        let cvName = "lebenslauf.pdf";
         if (resumeFile) {
           cvBlob = resumeFile;
-          cvName = resumeFile.name;
         } else {
           try {
             const resp = await fetch('/lebenslauf.pdf');
