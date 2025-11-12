@@ -817,7 +817,7 @@ Mark Baumann`
 
           if (useCompressedZeugnis) {
             try {
-              const resp = await fetch('/zeugnis_compressed.pdf');
+              const resp = await fetch('/zeugnisse_compressed.pdf');
               if (resp.ok) {
                 zeugnisBlob = await resp.blob();
                 zeugnisFilename = 'Marks_Zeugnis_Compressed.pdf';
@@ -829,7 +829,7 @@ Mark Baumann`
           } else {
             zeugnisBlob = zeugnisseFile; // Use uploaded file if present
             if (!zeugnisBlob) { // Fallback to demo file
-              const resp = await fetch('/zeugnis.pdf');
+              const resp = await fetch('/zeugnisse.pdf');
               if (resp.ok) zeugnisBlob = await resp.blob();
             }
             zeugnisFilename = zeugnisseFile?.name || 'Marks_Zeugnis.pdf';
@@ -1546,7 +1546,7 @@ Mark Baumann`
               onUseCompressedZeugnisChange={(v) => setUseCompressedZeugnis(v)}
               onLoadDemoZeugnisse={async () => {
                 try {
-                  const resp = await fetch('/zeugnis.pdf');
+                  const resp = await fetch('/zeugnisse.pdf');
                   if (!resp.ok) throw new Error('zeugnisse.pdf nicht gefunden');
                   const blob = await resp.blob();
                   const file = new File([blob], 'zeugnis.pdf', { type: 'application/pdf' });
