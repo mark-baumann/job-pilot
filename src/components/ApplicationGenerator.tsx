@@ -909,31 +909,17 @@ Mark Baumann`
           </p>
         </div>
 
-        {/* Debug Button */}
-        <div className="mb-4">
-          <Button onClick={() => {
-            console.log('Debug: showSourcesManager =', showSourcesManager);
-            setShowSourcesManager(!showSourcesManager);
-          }}>
-            Debug Sources Toggle (Current: {showSourcesManager ? 'true' : 'false'})
-          </Button>
-        </div>
-
         {/* Job List */}
         <JobList 
           onJobSelect={handleJobSelect} 
-          onSourcesClick={() => {
-            console.log('Sources clicked, current state:', showSourcesManager);
-            setShowSourcesManager(!showSourcesManager);
-          }}
+          onSourcesClick={() => setShowSourcesManager(true)}
         />
 
         {/* Sources Manager */}
-        {showSourcesManager && (
-          <div className="mt-6">
-            <SourcesManager />
-          </div>
-        )}
+        <SourcesManager 
+          isOpen={showSourcesManager} 
+          onClose={() => setShowSourcesManager(false)} 
+        />
 
         {/* API Configuration */}
         <Card className="w-full bg-white shadow-xl border border-blue-200 rounded-2xl text-black">
