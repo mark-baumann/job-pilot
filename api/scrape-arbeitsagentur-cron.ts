@@ -85,38 +85,64 @@ export default async function handler(
     
     console.log("Cron job: Extracting job data...");
     
-    // First, get all job links from the list page
-    const jobItemsLocator = page.locator('a[id^="ergebnisliste-item-"]');
-    await jobItemsLocator.first().waitFor({ timeout: 10000 }).catch(() => {});
-    const jobElements = await jobItemsLocator.all();
-    console.log("Cron job: Found", jobElements.length, "job elements");
-    
     let jobLinks: { link: string; title: string }[] = [];
-    for (let i = 0; i < jobElements.length; i++) {
-      const jobElement = jobElements[i];
-      const jobLink = await jobElement.getAttribute("href").catch(() => null);
-      let jobTitle = await jobElement.locator("h3").innerText().catch(() => "Titel nicht verfügbar");
-      jobTitle = jobTitle.replace(/^\d+\.\s*Ergebnis\s*/, "").replace(/^:\s*/, "").trim();
-      if (jobLink) {
-        jobLinks.push({ 
-          link: new URL(jobLink, selectedLink.url).toString(), 
-          title: jobTitle 
-        });
+    let currentPage = 1;
+    const maxPages = 3; // Limit to 3 pages to avoid timeout
+    
+    while (currentPage <= maxPages) {
+      console.log(`Cron job: Processing page ${currentPage}...`);
+      
+      // First, get all job links from the current page
+      const jobItemsLocator = page.locator('a[id^="ergebnisliste-item-"]');
+      await jobItemsLocator.first().waitFor({ timeout: 10000 }).catch(() => {});
+      const jobElements = await jobItemsLocator.all();
+      console.log("Cron job: Found", jobElements.length, "job elements on page", currentPage);
+      
+      if (jobElements.length === 0) {
+        console.log("Cron job: No more jobs found, stopping pagination");
+        break;
       }
+      
+      for (let i = 0; i < jobElements.length; i++) {
+        const jobElement = jobElements[i];
+        const jobLink = await jobElement.getAttribute("href").catch(() => null);
+        let jobTitle = await jobElement.locator("h3").innerText().catch(() => "Titel nicht verfügbar");
+        jobTitle = jobTitle.replace(/^\d+\.\s*Ergebnis\s*/, "").replace(/^:\s*/, "").trim();
+        if (jobLink) {
+          jobLinks.push({ 
+            link: new URL(jobLink, selectedLink.url).toString(), 
+            title: jobTitle 
+          });
+        }
+      }
+      
+      // Try to go to next page
+      const nextButton = page.locator('a[title="Nächste Seite"], .pagination-next, [data-testid="next-page"]');
+      const hasNextPage = await nextButton.isVisible().catch(() => false);
+      
+      if (!hasNextPage) {
+        console.log("Cron job: No next page found, stopping pagination");
+        break;
+      }
+      
+      console.log("Cron job: Going to next page...");
+      await nextButton.click();
+      await page.waitForTimeout(1000);
+      currentPage++;
     }
     
-    console.log("Cron job: Extracted", jobLinks.length, "job links");
+    console.log("Cron job: Extracted", jobLinks.length, "total job links from", currentPage - 1, "pages");
     
     const jobs: JobData[] = [];
     
     // Now visit each job page to get details
-    for (let i = 0; i < Math.min(jobLinks.length, 10); i++) { // Limit to 10 jobs to avoid timeout
+    for (let i = 0; i < jobLinks.length; i++) { // Process ALL jobs, not just 10
       const { link: absoluteLink, title: jobTitle } = jobLinks[i];
       console.log(`Cron job: Processing job ${i + 1}/${jobLinks.length}: ${jobTitle}`);
       
       try {
         await page.goto(absoluteLink, { waitUntil: "domcontentloaded", timeout: 20000 });
-        await page.waitForTimeout(1200);
+        await page.waitForTimeout(800); // Reduced wait time for faster processing
         
         let jobDescription = "";
         let firma = "";
