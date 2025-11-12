@@ -88,12 +88,25 @@ export default async function handler(
     
     // Direct scraping instead of calling API
     const browser = await playwrightChromium.launch({
-      args: chromium.args,
+      args: [
+        ...chromium.args, 
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu'
+      ],
       executablePath: await chromium.executablePath(),
       headless: true,
     });
 
     const page = await browser.newPage();
+    
+    // Optimize page for maximum speed
+    await page.route('**/*.{png,jpg,jpeg,gif,svg,css,font,woff,woff2}', route => route.abort());
+    await page.setViewportSize({ width: 1280, height: 720 });
     
     console.log("Cron job: Navigating to:", selectedLink.url);
     await page.goto(selectedLink.url, { waitUntil: 'networkidle' });
@@ -167,24 +180,24 @@ export default async function handler(
       console.log(`Cron job: Processing job ${i + 1}/${jobsToProcess.length}: ${jobTitle}`);
       
       try {
-        await page.goto(absoluteLink, { waitUntil: "domcontentloaded", timeout: 20000 });
-        await page.waitForTimeout(500);
+        await page.goto(absoluteLink, { waitUntil: "domcontentloaded", timeout: 8000 });
+        await page.waitForTimeout(100); // Minimal wait
         
         let jobDescription = "";
         let firma = "";
         let arbeitsort = "";
         
-        // Extract job details from individual job page
+        // Extract job details from individual job page (ultra-fast)
         try {
-          jobDescription = await page.locator('.stelle-beschreibung, .beschreibung, [data-testid="job-description"]').innerText().catch(() => "");
+          jobDescription = await page.locator('.stelle-beschreibung, .beschreibung, [data-testid="job-description"]').first().innerText({ timeout: 1000 }).catch(() => "");
         } catch {}
         
         try {
-          firma = await page.locator('.firma, .company-name, [data-testid="company-name"]').innerText().catch(() => "");
+          firma = await page.locator('.firma, .company-name, [data-testid="company-name"]').first().innerText({ timeout: 1000 }).catch(() => "");
         } catch {}
         
         try {
-          arbeitsort = await page.locator('.ort, .job-location, [data-testid="job-location"]').innerText().catch(() => "");
+          arbeitsort = await page.locator('.ort, .job-location, [data-testid="job-location"]').first().innerText({ timeout: 1000 }).catch(() => "");
         } catch {}
         
         jobs.push({
