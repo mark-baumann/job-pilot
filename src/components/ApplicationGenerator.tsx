@@ -28,7 +28,6 @@ import { ResumeAnalysisService } from "../services/resumeAnalysisService";
 
 // Components
 import CoverLetterEditor from "./CoverLetterEditor";
-import { PlaywrightRunner } from "./PlaywrightRunner";
 import SourcesManager from "./SourcesManager";
 
 
@@ -74,22 +73,6 @@ export default function ApplicationGenerator() {
   const [firmaInput, setFirmaInput] = useState("");
   const [adresseInput, setAdresseInput] = useState("");
   const [titleInput, setTitleInput] = useState("");
-
-  // Handle job selection from PlaywrightRunner
-  const handleJobSelect = (job: any) => {
-    setTitleInput(job.title || "");
-    setFirmaInput(job.firma || "");
-    setAdresseInput(job.arbeitsort || "");
-    setJobDescription(job.description || "");
-    
-    // Save to localStorage
-    localStorage.setItem("title", job.title || "");
-    localStorage.setItem("firma", job.firma || "");
-    localStorage.setItem("adresse", job.arbeitsort || "");
-    localStorage.setItem("job-description", job.description || "");
-  };
-
-  
 
   // Load persisted form inputs and check for saved password
   useEffect(() => {
@@ -910,9 +893,6 @@ Mark Baumann`
             Generiere individuelle Anschreiben basierend auf Stellenanzeigen
           </p>
         </div>
-
-        {/* Job Scraper */}
-        <PlaywrightRunner onJobSelect={handleJobSelect} />
 
         {/* Sources Manager Button */}
         <Card className="w-full bg-white shadow-xl border border-blue-200 rounded-2xl text-black">
