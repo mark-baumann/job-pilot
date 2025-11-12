@@ -57,8 +57,9 @@ export default function ApplicationGenerator() {
   const [selectedOpenaiKeyIndex, setSelectedOpenaiKeyIndex] = useState<number>(-1);
   const [showSelectedOpenaiKey, setShowSelectedOpenaiKey] = useState(false);
   const [newOpenaiKey, setNewOpenaiKey] = useState("");
-  const [appPassword, setAppPassword] = useState("");
-  const [showAppPassword, setShowAppPassword] = useState(false);
+  const [appPassword, setAppPassword] = useState(""); // This is the app password for backend auth and now UI unlock
+  const [showAppPassword, setShowAppPassword] = useState(false); // This is for the app password input visibility
+  const [isAppPasswordUnlocked, setIsAppPasswordUnlocked] = useState(false); // New state for UI unlock
   
   const [cloudConvertApiKey, setCloudConvertApiKey] = useState("");
   const [cloudConvertApiKeys, setCloudConvertApiKeys] = useState<{id: string, key_value: string}[]>([]);
@@ -133,6 +134,9 @@ export default function ApplicationGenerator() {
 
   const loadOpenaiKeys = async () => {
     try {
+      if (!isAppPasswordUnlocked || !appPassword) { // Only load if unlocked and password is set
+        return;
+      }
       if (!appPassword) {
         return;
       }
@@ -167,6 +171,9 @@ export default function ApplicationGenerator() {
   };
 
   const loadCloudConvertKeys = async () => {
+    if (!isAppPasswordUnlocked) { // Only load if unlocked
+      return;
+    }
     try {
       const response = await fetch('/api/cloudconvert');
       if (!response.ok) throw new Error('Failed to fetch keys');
@@ -205,15 +212,29 @@ export default function ApplicationGenerator() {
     if (savedModel) setSelectedModel(savedModel);
 
     loadCloudConvertKeys();
+    // Do NOT automatically unlock here. User must explicitly unlock.
   }, []);
 
   // Load OpenAI keys when app password changes
   useEffect(() => {
-    if (appPassword) {
+    if (isAppPasswordUnlocked && appPassword) { // Only load if unlocked
       loadOpenaiKeys();
+      loadCloudConvertKeys(); // Load CloudConvert keys here too
     }
-  }, [appPassword]);
+  }, [appPassword, isAppPasswordUnlocked]);
 
+  const handleUnlockAppPassword = () => {
+    // For demonstration, use a hardcoded value. In production, this should be secure.
+    if (appPassword === "jobpilot") { // Example master password for UI
+      setIsAppPasswordUnlocked(true);
+      toast({ title: "Zugriff gewährt", description: "API-Schlüssel-Bereich entsperrt." });
+      loadOpenaiKeys(); // Load keys after successful unlock
+      loadCloudConvertKeys();
+    } else {
+      toast({ title: "Falsches Passwort", description: "Das eingegebene App-Passwort ist nicht korrekt.", variant: "destructive" });
+      setIsAppPasswordUnlocked(false);
+    }
+  };
   // Save settings
   useEffect(() => {
     if (appPassword) localStorage.setItem("app-password", appPassword);
@@ -235,7 +256,7 @@ export default function ApplicationGenerator() {
   useEffect(() => {
     if (selectedCloudConvertKeyIndex >= 0) {
       localStorage.setItem("cloudconvert-api-key-selected-index", String(selectedCloudConvertKeyIndex));
-      setCloudConvertApiKey(cloudConvertApiKeys[selectedCloudConvertKeyIndex]?.key_value || "");
+      setCloudConvertApiKey(cloudConvertApiKeys[selectedCloudConvertKeyIndex]?.key_value || ""); // Corrected to use cloudConvertApiKeys
     } else {
       setCloudConvertApiKey("");
     }
@@ -847,29 +868,47 @@ Mark Baumann`
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="app-password">App Passwort (für API-Schlüssel Zugriff)</Label>
+              <Label htmlFor="app-password">App Passwort (zum Anzeigen der API-Schlüssel)</Label>
               <div className="relative">
                 <Input
                   id="app-password"
                   type={showAppPassword ? "text" : "password"}
                   placeholder="App Passwort eingeben"
                   value={appPassword}
-                  onChange={(e) => setAppPassword(e.target.value)}
+                  onChange={(e) => {
+                    setAppPassword(e.target.value);
+                    setIsAppPasswordUnlocked(false); // Reset unlock status on change
+                  }}
                   className="pr-10 bg-white border-primary/30 focus:border-primary/60 transition-colors"
+                  disabled={isAppPasswordUnlocked}
                 />
                 <Button
                   variant="ghost"
                   size="sm"
                   type="button"
                   onClick={() => setShowAppPassword(!showAppPassword)}
-                  className="absolute right-0 top-0 h-full px-3 hover:bg-primary/10"
+                  className="absolute right-10 top-0 h-full px-3 hover:bg-primary/10"
                 >
                   {showAppPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </Button>
+                <Button
+                  type="button"
+                  onClick={handleUnlockAppPassword}
+                  disabled={isAppPasswordUnlocked || appPassword.length === 0}
+                  className="absolute right-0 top-0 h-full px-3 hover:bg-primary/10"
+                >
+                  {isAppPasswordUnlocked ? "Entsperrt" : "Entsperren"}
+                </Button>
+              </div>
+              {isAppPasswordUnlocked && (
+                <p className="text-sm text-green-600 flex items-center gap-1">
+                  <CheckCircle className="w-4 h-4" /> API-Schlüssel-Ansicht entsperrt.
+                </p>
               </div>
             </div>
 
-            <div className="space-y-2">
+            {isAppPasswordUnlocked && (
+              <div className="space-y-2">
               <Label>OpenAI API-Schlüssel</Label>
               <div className="flex items-center gap-2">
                 <Select
@@ -879,6 +918,7 @@ Mark Baumann`
                     setSelectedOpenaiKeyIndex(idx);
                     setApiKey(openaiApiKeys[idx]?.key_value || "");
                     setShowSelectedOpenaiKey(false);
+                    }
                   }}
                 >
                   <SelectTrigger className="bg-white border-primary/30 focus:border-primary/60 transition-colors w-full">
@@ -902,18 +942,19 @@ Mark Baumann`
                   </SelectContent>
                 </Select>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   type="button"
-                  onClick={() => setShowSelectedOpenaiKey(!showSelectedOpenaiKey)}
-                  className="shrink-0 bg-white text-black border border-blue-200 hover:bg-blue-50 hover:text-black"
-                  disabled={selectedOpenaiKeyIndex < 0}
+                  onClick={() => {
+                    setShowSelectedOpenaiKey(!showSelectedOpenaiKey);
+                  }}
+                  className="shrink-0 h-full px-3 hover:bg-primary/10"
+                  disabled={selectedOpenaiKeyIndex < 0 || !isAppPasswordUnlocked}
                 >
                   {showSelectedOpenaiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </Button>
                 <Button
-                  variant="outline"
-                  size="sm"
+                  size="sm" variant="destructive"
                   type="button"
                   className="shrink-0 bg-white text-black border border-blue-200 hover:bg-blue-50 hover:text-black"
                   onClick={async () => {
@@ -939,14 +980,14 @@ Mark Baumann`
                       }
                     }
                   }}
-                  disabled={selectedOpenaiKeyIndex < 0 || !appPassword}
+                  disabled={selectedOpenaiKeyIndex < 0 || !isAppPasswordUnlocked}
                 >
                   Entfernen
                 </Button>
               </div>
               {showSelectedOpenaiKey && selectedOpenaiKeyIndex >= 0 && (
                 <Input
-                  type={showApiKey ? "text" : "password"}
+                  type={showSelectedOpenaiKey ? "text" : "password"}
                   value={openaiApiKeys[selectedOpenaiKeyIndex]?.key_value || ""}
                   readOnly
                   className="bg-white border-primary/30"
@@ -958,6 +999,7 @@ Mark Baumann`
                   value={newOpenaiKey}
                   onChange={(e) => setNewOpenaiKey(e.target.value)}
                   className="bg-white border-primary/30"
+                  disabled={!isAppPasswordUnlocked}
                 />
                 <Button
                   type="button"
@@ -980,13 +1022,14 @@ Mark Baumann`
                       toast({ title: "Fehler beim Speichern", description: String(error), variant: "destructive" });
                     }
                   }}
-                  disabled={!newOpenaiKey || !appPassword}
+                  disabled={!newOpenaiKey || !isAppPasswordUnlocked}
                 >
                   Hinzufügen
                 </Button>
               </div>
             </div>
-
+            )}
+            {isAppPasswordUnlocked && (
             <div className="space-y-2">
               <Label>CloudConvert API-Schlüssel (für PDF-Export)</Label>
               <div className="flex items-center gap-2">
@@ -997,6 +1040,7 @@ Mark Baumann`
                     setSelectedCloudConvertKeyIndex(idx);
                     setCloudConvertApiKey(cloudConvertApiKeys[idx]?.key_value || "");
                     setShowSelectedCloudConvertKey(false);
+                    }
                   }}
                 >
                   <SelectTrigger className="bg-white border-primary/30 focus:border-primary/60 transition-colors w-full">
@@ -1020,18 +1064,19 @@ Mark Baumann`
                   </SelectContent>
                 </Select>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   type="button"
-                  onClick={() => setShowSelectedCloudConvertKey(!showSelectedCloudConvertKey)}
-                  className="shrink-0 bg-white text-black border border-blue-200 hover:bg-blue-50 hover:text-black"
-                  disabled={selectedCloudConvertKeyIndex < 0}
+                  onClick={() => {
+                    setShowSelectedCloudConvertKey(!showSelectedCloudConvertKey);
+                  }}
+                  className="shrink-0 h-full px-3 hover:bg-primary/10"
+                  disabled={selectedCloudConvertKeyIndex < 0 || !isAppPasswordUnlocked}
                 >
                   {showSelectedCloudConvertKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </Button>
                 <Button
-                  variant="outline"
-                  size="sm"
+                  size="sm" variant="destructive"
                   type="button"
                   className="shrink-0 bg-white text-black border border-blue-200 hover:bg-blue-50 hover:text-black"
                   onClick={async () => {
@@ -1054,15 +1099,15 @@ Mark Baumann`
                       }
                     }
                   }}
-                  disabled={selectedCloudConvertKeyIndex < 0}
+                  disabled={selectedCloudConvertKeyIndex < 0 || !isAppPasswordUnlocked}
                 >
                   Entfernen
                 </Button>
               </div>
               {showSelectedCloudConvertKey && selectedCloudConvertKeyIndex >= 0 && (
                 <Input
-                  type={showCloudConvertApiKey ? "text" : "password"}
-                  value={cloudConvertApiKeys[selectedCloudConvertKeyIndex]}
+                  type={showSelectedCloudConvertKey ? "text" : "password"}
+                  value={cloudConvertApiKeys[selectedCloudConvertKeyIndex]?.key_value || ""}
                   readOnly
                   className="bg-white border-primary/30"
                 />
@@ -1072,6 +1117,7 @@ Mark Baumann`
                   placeholder="Neuen Schlüssel eingeben (Bearer …)"
                   value={newCloudConvertKey}
                   onChange={(e) => setNewCloudConvertKey(e.target.value)}
+                  disabled={!isAppPasswordUnlocked}
                   className="bg-white border-primary/30"
                 />
                 <Button
@@ -1092,34 +1138,36 @@ Mark Baumann`
                       toast({ title: "Fehler beim Speichern", description: String(error), variant: "destructive" });
                     }
                   }}
-                  disabled={!newCloudConvertKey}
+                  disabled={!newCloudConvertKey || !isAppPasswordUnlocked}
                 >
                   Hinzufügen
                 </Button>
               </div>
             </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="model-select">KI-Modell</Label>
-              <Select value={selectedModel} onValueChange={setSelectedModel}>
-                <SelectTrigger className="bg-white border-primary/30 focus:border-primary/60 transition-colors">
-                  <div className="flex items-center gap-2">
-                    <Brain className="w-4 h-4 text-primary" />
-                    <SelectValue placeholder="Wählen Sie ein Modell" />
-                  </div>
-                </SelectTrigger>
-                <SelectContent className="bg-white backdrop-blur-sm border-primary/20 shadow-xl">
-                  {gptModels.map((model) => (
-                    <SelectItem key={model.value} value={model.value} className="hover:bg-primary/10 focus:bg-primary/10 text-black">
-                      <div className="flex flex-col">
-                        <span className="font-medium text-black">{model.label}</span>
-                        <span className="text-xs text-muted-foreground">{model.description}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            )}
+            {isAppPasswordUnlocked && (
+              <div className="space-y-2">
+                <Label htmlFor="model-select">KI-Modell</Label>
+                <Select value={selectedModel} onValueChange={setSelectedModel}>
+                  <SelectTrigger className="bg-white border-primary/30 focus:border-primary/60 transition-colors">
+                    <div className="flex items-center gap-2">
+                      <Brain className="w-4 h-4 text-primary" />
+                      <SelectValue placeholder="Wählen Sie ein Modell" />
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent className="bg-white backdrop-blur-sm border-primary/20 shadow-xl">
+                    {gptModels.map((model) => (
+                      <SelectItem key={model.value} value={model.value} className="hover:bg-primary/10 focus:bg-primary/10 text-black">
+                        <div className="flex flex-col">
+                          <span className="font-medium text-black">{model.label}</span>
+                          <span className="text-xs text-muted-foreground">{model.description}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </CardContent>
         </Card>
 
