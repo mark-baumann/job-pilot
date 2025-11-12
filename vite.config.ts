@@ -92,6 +92,19 @@ export default defineConfig({
           return (mod as any).default(req, res);
         });
 
+        // Dev-API: Verify App Password
+        server.middlewares.use("/api/verify-app-password", async (req, res) => {
+          if (req.method !== "POST") {
+            res.statusCode = 405;
+            res.end("Method Not Allowed");
+            return;
+          }
+          const mod = await server.ssrLoadModule(
+            path.resolve(__dirname, "api/verify-app-password.ts")
+          );
+          return (mod as any).default(req, res);
+        });
+
 
 
 
