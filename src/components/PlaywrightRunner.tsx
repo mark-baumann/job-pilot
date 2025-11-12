@@ -103,12 +103,12 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
   }, []);
 
   return (
-    <Card className="w-full bg-white shadow-xl border border-blue-200 rounded-2xl text-black">
-      <CardHeader>
-        <CardTitle>Job Scraping</CardTitle>
+    <Card className="w-full max-w-screen-2xl mx-auto bg-white shadow-xl border border-blue-200 rounded-2xl text-black">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-2xl">Job Scraping</CardTitle>
         <CardDescription>Scrape Jobs von der Arbeitsagentur und zeige alle gespeicherten Ergebnisse an.</CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-2">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2">
@@ -138,16 +138,17 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
 
           <div>
             <h4 className="text-sm font-medium mb-2">Alle Jobs</h4>
-            <div className="border rounded-md">
+            {/* Desktop/Tablette: Tabelle */}
+            <div className="hidden md:block border rounded-md">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[22%]">Title</TableHead>
-                    <TableHead className="w-[14%]">Company</TableHead>
-                    <TableHead className="w-[14%]">Location</TableHead>
-                    <TableHead className="w-[38%]">Description</TableHead>
-                    <TableHead className="w-[6%]">Link</TableHead>
-                    <TableHead className="w-[6%]">Action</TableHead>
+                    <TableHead className="w-[24%]">Title</TableHead>
+                    <TableHead className="w-[16%]">Company</TableHead>
+                    <TableHead className="w-[16%]">Location</TableHead>
+                    <TableHead className="w-[34%]">Description</TableHead>
+                    <TableHead className="w-[5%]">Link</TableHead>
+                    <TableHead className="w-[5%]">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -194,6 +195,42 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                   })}
                 </TableBody>
               </Table>
+            </div>
+            {/* Smartphone: Karten-Layout */}
+            <div className="md:hidden space-y-3">
+              {jobs.map((job, idx) => {
+                const full = (job.description || "").replace(/\s+/g, " ").trim();
+                const short = full.length > 220 ? full.slice(0, 220) + "…" : full;
+                return (
+                  <div key={job.link || idx} className="rounded-lg border p-3 bg-white">
+                    <div className="font-semibold mb-1 break-words">{job.title}</div>
+                    <div className="text-xs text-muted-foreground mb-1 break-words">{job.firma} · {job.arbeitsort}</div>
+                    <div className="text-sm text-black whitespace-pre-wrap break-words">
+                      {(expanded[job.link] ? full : short) || <span className="italic text-muted-foreground">(keine Beschreibung)</span>}
+                      {full && full.length > short.length && (
+                        <div className="mt-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-black hover:text-black"
+                            onClick={() => setExpanded((prev) => ({ ...prev, [job.link]: !prev[job.link] }))}
+                          >
+                            {expanded[job.link] ? "Weniger" : "Mehr"}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Button asChild variant="link" size="sm">
+                        <a href={job.link} target="_blank" rel="noopener noreferrer">Öffnen</a>
+                      </Button>
+                      <Button variant="default" size="sm" className="text-white hover:text-white" onClick={() => onJobSelect(job)}>
+                        Select
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
