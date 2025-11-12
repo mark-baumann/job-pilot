@@ -938,7 +938,7 @@ Mark Baumann`
                     setAppPassword(e.target.value);
                     setIsAppPasswordUnlocked(false); // Reset unlock status on change
                   }}
-                  className="pr-10 bg-white border-primary/30 focus:border-primary/60 transition-colors"
+                  className="pr-20 bg-white border-primary/30 focus:border-primary/60 transition-colors"
                   disabled={isAppPasswordUnlocked}
                 />
                 <Button
@@ -947,6 +947,7 @@ Mark Baumann`
                   type="button"
                   onClick={() => setShowAppPassword(!showAppPassword)}
                   className="absolute right-10 top-0 h-full px-3 hover:bg-primary/10"
+                  disabled={isAppPasswordUnlocked}
                 >
                   {showAppPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </Button>
