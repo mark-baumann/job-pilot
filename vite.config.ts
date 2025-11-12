@@ -87,7 +87,7 @@ export default defineConfig({
         // Dev-API: CloudConvert Keys
         server.middlewares.use("/api/keys/cloudconvert", async (req, res) => {
           const mod = await server.ssrLoadModule(
-            path.resolve(__dirname, "api/keys/cloudconvert.ts")
+            path.resolve(__dirname, "api/cloudconvert.ts")
           );
           return (mod as any).default(req, res);
         });
