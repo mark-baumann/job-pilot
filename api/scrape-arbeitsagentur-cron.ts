@@ -1,5 +1,15 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { Pool } from "pg";
+import chromium from "@sparticuz/chromium";
+import { chromium as playwrightChromium } from "playwright-core";
+
+interface JobData {
+  title: string;
+  description: string;
+  link: string;
+  firma?: string;
+  arbeitsort?: string;
+}
 
 export default async function handler(
   request: VercelRequest,
@@ -48,46 +58,88 @@ export default async function handler(
       [selectedLink.id]
     );
 
-    await pool.end();
+    console.log("Cron job: Starting playwright scraping...");
+    
+    // Direct scraping instead of calling API
+    const browser = await playwrightChromium.launch({
+      args: chromium.args,
+      defaultViewport: chromium.defaultViewport,
+      executablePath: await chromium.executablePath(),
+      headless: chromium.headless,
+    });
 
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : "http://localhost:3000";
+    const page = await browser.newPage();
     
-    console.log("Cron job: Base URL:", baseUrl);
+    console.log("Cron job: Navigating to:", selectedLink.url);
+    await page.goto(selectedLink.url, { waitUntil: 'networkidle' });
     
-    const scrapeUrl = `${baseUrl}/api/scrape-arbeitsagentur`;
-    console.log("Cron job: Calling scrape API:", scrapeUrl);
-    
-    try {
-      const scrapeResponse = await fetch(scrapeUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ url: selectedLink.url }),
-      });
-
-      console.log("Cron job: Scrape response status:", scrapeResponse.status);
+    console.log("Cron job: Extracting job data...");
+    const jobs = await page.evaluate(() => {
+      const jobElements = document.querySelectorAll('[data-testid="job-item"], .job-item, .job-list-item, article[data-href*="/jobs/"]');
+      const extractedJobs: JobData[] = [];
       
-      if (!scrapeResponse.ok) {
-        const errorText = await scrapeResponse.text();
-        console.log("Cron job: Scrape error response:", errorText);
-        throw new Error(`Failed to trigger scrape: ${scrapeResponse.status} - ${errorText}`);
+      jobElements.forEach((element) => {
+        try {
+          const titleElement = element.querySelector('h3, h2, .job-title, [data-testid="job-title"]');
+          const linkElement = element.querySelector('a[href*="/jobs/"]');
+          const descriptionElement = element.querySelector('.job-description, p, .description');
+          const companyElement = element.querySelector('.company-name, [data-testid="company-name"]');
+          const locationElement = element.querySelector('.job-location, [data-testid="job-location"]');
+          
+          if (titleElement && linkElement) {
+            const title = titleElement.textContent?.trim() || '';
+            const link = (linkElement as HTMLAnchorElement).href;
+            const description = descriptionElement?.textContent?.trim() || '';
+            const firma = companyElement?.textContent?.trim() || undefined;
+            const arbeitsort = locationElement?.textContent?.trim() || undefined;
+            
+            if (title && link) {
+              extractedJobs.push({
+                title,
+                description,
+                link,
+                firma,
+                arbeitsort
+              });
+            }
+          }
+        } catch (error) {
+          console.warn('Error extracting job:', error);
+        }
+      });
+      
+      return extractedJobs;
+    });
+
+    await browser.close();
+    console.log("Cron job: Extracted", jobs.length, "jobs");
+
+    // Save jobs to database
+    let savedJobs = 0;
+    for (const job of jobs) {
+      try {
+        await pool.query(
+          `INSERT INTO jobs (title, description, link, firma, arbeitsort) 
+           VALUES ($1, $2, $3, $4, $5) 
+           ON CONFLICT (link) DO NOTHING`,
+          [job.title, job.description, job.link, job.firma, job.arbeitsort]
+        );
+        savedJobs++;
+      } catch (error) {
+        console.warn('Error saving job:', error);
       }
-
-      const result = await scrapeResponse.json();
-      console.log("Cron job: Scrape success:", result);
-      
-      response.status(200).json({ 
-        success: true, 
-        scrapedLink: selectedLink,
-        result 
-      });
-    } catch (fetchError) {
-      console.log("Cron job: Fetch error:", fetchError);
-      throw new Error(`Fetch failed: ${(fetchError as Error).message}`);
     }
+
+    await pool.end();
+    console.log("Cron job: Saved", savedJobs, "new jobs to database");
+    
+    response.status(200).json({ 
+      success: true, 
+      scrapedLink: selectedLink,
+      jobsFound: jobs.length,
+      jobsSaved: savedJobs
+    });
+    
   } catch (error) {
     console.error("Cron handler error:", error);
     console.error("Cron handler error stack:", (error as Error).stack);
