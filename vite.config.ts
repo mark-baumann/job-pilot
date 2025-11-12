@@ -113,6 +113,14 @@ export default defineConfig({
           return (mod as any).default(req, res);
         });
 
+        // Dev-API: Cron Job (for testing)
+        server.middlewares.use("/api/scrape-arbeitsagentur-cron", async (req, res) => {
+          const mod = await server.ssrLoadModule(
+            path.resolve(__dirname, "api/scrape-arbeitsagentur-cron.ts")
+          );
+          return (mod as any).default(req, res);
+        });
+
 
 
 

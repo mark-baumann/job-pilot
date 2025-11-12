@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Trash2, Play, ExternalLink, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Trash2, ExternalLink, ToggleLeft, ToggleRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface JobLink {
@@ -20,7 +20,6 @@ export default function SourcesManager() {
   const [links, setLinks] = useState<JobLink[]>([]);
   const [newUrl, setNewUrl] = useState("");
   const [newTitle, setNewTitle] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     loadLinks();
@@ -96,47 +95,6 @@ export default function SourcesManager() {
     }
   };
 
-  const runCronJob = async () => {
-    setIsLoading(true);
-    try {
-      // Get random active link
-      const activeLinks = links.filter(link => link.active);
-      if (activeLinks.length === 0) {
-        toast({ title: "Keine aktiven Links", description: "Bitte aktivieren Sie mindestens eine Quelle.", variant: "destructive" });
-        return;
-      }
-
-      const randomLink = activeLinks[Math.floor(Math.random() * activeLinks.length)];
-      
-      // Trigger cron job with selected link
-      const response = await fetch('/api/scrape-arbeitsagentur', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: randomLink.url }),
-      });
-
-      if (response.ok) {
-        toast({ 
-          title: "Cron Job gestartet", 
-          description: `Scraping für "${randomLink.title || randomLink.url}" gestartet.` 
-        });
-        // Update last_used for the selected link
-        await fetch('/api/job-links', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: randomLink.id, active: true }),
-        });
-        loadLinks();
-      } else {
-        toast({ title: "Fehler", description: "Cron Job konnte nicht gestartet werden", variant: "destructive" });
-      }
-    } catch (error) {
-      toast({ title: "Fehler", description: "Verbindung zum Server fehlgeschlagen", variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <Card className="w-full bg-white shadow-xl border border-blue-200 rounded-2xl text-black">
       <CardHeader className="pb-4">
@@ -177,24 +135,12 @@ export default function SourcesManager() {
           </Button>
         </div>
 
-        {/* Run cron job */}
-        <div className="flex items-center gap-4 p-4 bg-blue-50 rounded-lg">
-          <Button 
-            onClick={runCronJob} 
-            disabled={isLoading || links.filter(l => l.active).length === 0}
-            className="flex-1"
-          >
-            <Play className="w-4 h-4 mr-2" />
-            {isLoading ? "Scraping läuft..." : "Cron Job ausführen"}
-          </Button>
-          <div className="text-sm text-muted-foreground">
-            {links.filter(l => l.active).length} aktive Quellen
-          </div>
-        </div>
-
         {/* Links list */}
         <div className="space-y-3">
           <h3 className="text-sm font-medium">Aktuelle Links</h3>
+          <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-lg">
+            <strong>Automatischer Cron Job:</strong> Die Datenbank wird jede Stunde automatisch mit zufällig ausgewählten aktiven Quellen gefüllt.
+          </div>
           {links.length === 0 ? (
             <p className="text-sm text-muted-foreground">Keine Quellen konfiguriert</p>
           ) : (
