@@ -739,11 +739,11 @@ Mark Baumann`
 
           if (useCompressedZeugnis) {
             try {
-              const resp = await fetch('/zeugnis-compressed.html');
+              const resp = await fetch('/zeugnis_compressed.pdf');
               if (resp.ok) {
                 zeugnisBlob = await resp.blob();
-                zeugnisFilename = 'Marks_Zeugnis_Compressed.html';
-                zeugnisContentType = zeugnisBlob.type || 'text/html';
+                zeugnisFilename = 'Marks_Zeugnis_Compressed.pdf';
+                zeugnisContentType = zeugnisBlob.type || 'application/pdf';
               }
             } catch (e) {
               console.error('Could not fetch compressed zeugnis', e);
