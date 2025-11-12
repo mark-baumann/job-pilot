@@ -24,15 +24,14 @@ import {
 import { saveAs } from "file-saver";
 
 // Services
-import { OpenAIService, JobRequirements, SkillMatch } from "../services/openaiService";
+import { OpenAIService } from "../services/openaiService";
 import { CloudConvertService } from "../services/cloudConvertService";
-import { ResumeAnalysisService, ResumeAnalysis } from "../services/resumeAnalysisService";
+import { ResumeAnalysisService } from "../services/resumeAnalysisService";
 
 // Components
 import CoverLetterEditor from "./CoverLetterEditor";
 import { PlaywrightRunner } from "./PlaywrightRunner";
 
-import { Job } from "@/types";
 
 
 interface ProcessingStep {
@@ -68,8 +67,6 @@ export default function ApplicationGenerator() {
   const [newCloudConvertKey, setNewCloudConvertKey] = useState("");
   
   const [selectedModel, setSelectedModel] = useState("gpt-4.1-2025-04-14");
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [showCloudConvertApiKey, setShowCloudConvertApiKey] = useState(false);
 
   // Form Data
   const [jobDescription, setJobDescription] = useState("");
@@ -223,15 +220,32 @@ export default function ApplicationGenerator() {
     }
   }, [appPassword, isAppPasswordUnlocked]);
 
-  const handleUnlockAppPassword = () => {
-    // For demonstration, use a hardcoded value. In production, this should be secure.
-    if (appPassword === "jobpilot") { // Example master password for UI
-      setIsAppPasswordUnlocked(true);
-      toast({ title: "Zugriff gewährt", description: "API-Schlüssel-Bereich entsperrt." });
-      loadOpenaiKeys(); // Load keys after successful unlock
-      loadCloudConvertKeys();
-    } else {
-      toast({ title: "Falsches Passwort", description: "Das eingegebene App-Passwort ist nicht korrekt.", variant: "destructive" });
+  const handleUnlockAppPassword = async () => {
+    try {
+      const response = await fetch('/api/verify-app-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: appPassword }),
+      });
+      
+      if (!response.ok) {
+        toast({ title: "Konfigurationsfehler", description: "Server nicht erreichbar", variant: "destructive" });
+        return;
+      }
+      
+      const { valid } = await response.json();
+      
+      if (valid) {
+        setIsAppPasswordUnlocked(true);
+        toast({ title: "Zugriff gewährt", description: "API-Schlüssel-Bereich entsperrt." });
+        loadOpenaiKeys(); // Load keys after successful unlock
+        loadCloudConvertKeys();
+      } else {
+        toast({ title: "Falsches Passwort", description: "Das eingegebene App-Passwort ist nicht korrekt.", variant: "destructive" });
+        setIsAppPasswordUnlocked(false);
+      }
+    } catch (error) {
+      toast({ title: "Fehler", description: "Verbindung zum Server fehlgeschlagen", variant: "destructive" });
       setIsAppPasswordUnlocked(false);
     }
   };
@@ -1314,7 +1328,7 @@ Mark Baumann`
                    />
                  </div>
                  <div className="space-y-3">
-                   {processingSteps.map((step, index) => (
+                   {processingSteps.map((step) => (
                      <div 
                        key={step.id} 
                        className={`flex items-start gap-3 p-3 rounded-lg border-2 transition-all duration-200 cursor-pointer hover:shadow-md ${
