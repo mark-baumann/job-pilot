@@ -105,6 +105,14 @@ export default defineConfig({
           return (mod as any).default(req, res);
         });
 
+        // Dev-API: Job Links Management
+        server.middlewares.use("/api/job-links", async (req, res) => {
+          const mod = await server.ssrLoadModule(
+            path.resolve(__dirname, "api/job-links.ts")
+          );
+          return (mod as any).default(req, res);
+        });
+
 
 
 
