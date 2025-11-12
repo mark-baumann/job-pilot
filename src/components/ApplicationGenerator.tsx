@@ -751,11 +751,11 @@ Mark Baumann`
           } else {
             zeugnisBlob = zeugnisseFile; // Use uploaded file if present
             if (!zeugnisBlob) { // Fallback to demo file
-              const resp = await fetch('/zeugnisse.pdf');
+              const resp = await fetch('/zeugnis.pdf');
               if (resp.ok) zeugnisBlob = await resp.blob();
             }
-            zeugnisFilename = zeugnisseFile?.name || 'Marks_Zeugnisse.pdf';
-            zeugnisContentType = zeugnisBlob?.type || 'application/pdf';
+            zeugnisFilename = zeugnisseFile?.name || 'Marks_Zeugnis.pdf';
+            zeugnisContentType = zeugnisBlob?.type || 'application/pdf'; // Ensure correct content type
           }
 
           if (zeugnisBlob) {
@@ -1426,17 +1426,17 @@ Mark Baumann`
               onCvUploadClick={() => document.getElementById('resume-upload')?.click()}
               onZeugnisseUpload={(file) => setZeugnisseFile(file)}
               zeugnisseFileName={zeugnisseFile?.name}
-              useCompressedZeugnis={useCompressedZeugnis}
+              useCompressedZeugnis={useCompressedZeugnis} // Pass the state
               onUseCompressedZeugnisChange={(v) => setUseCompressedZeugnis(v)}
               onLoadDemoZeugnisse={async () => {
                 try {
-                  const resp = await fetch('/zeugnisse.pdf');
+                  const resp = await fetch('/zeugnis.pdf');
                   if (!resp.ok) throw new Error('zeugnisse.pdf nicht gefunden');
                   const blob = await resp.blob();
-                  const file = new File([blob], 'zeugnisse.pdf', { type: 'application/pdf' });
+                  const file = new File([blob], 'zeugnis.pdf', { type: 'application/pdf' });
                   setZeugnisseFile(file);
                   setUseCompressedZeugnis(false); // Make sure standard is selected
-                  toast({ title: 'Zeugnisse geladen', description: 'Demodatei zeugnisse.pdf geladen.' });
+                  toast({ title: 'Zeugnisse geladen', description: 'Demodatei zeugnis.pdf geladen.' });
                 } catch (e) {
                   toast({ title: 'Fehler', description: String(e), variant: 'destructive' });
                 }
@@ -1444,7 +1444,7 @@ Mark Baumann`
               onLoadDemoZeugnisCompressed={() => {
                 setUseCompressedZeugnis(true);
                 setZeugnisseFile(null);
-                toast({ title: 'Komprimiertes Zeugnis ausgewählt', description: 'Beim Senden wird "Marks_Zeugnis_Compressed.html" angehängt.' });
+                toast({ title: 'Komprimiertes Zeugnis ausgewählt', description: 'Beim Senden wird "Marks_Zeugnis_Compressed.pdf" angehängt.' });
               }}
               onSendEmail={handleSendEmail}
               isEmailSending={isEmailSending}
