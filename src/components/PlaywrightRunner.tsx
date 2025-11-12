@@ -143,12 +143,11 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[24%]">Title</TableHead>
-                    <TableHead className="w-[16%]">Company</TableHead>
-                    <TableHead className="w-[16%]">Location</TableHead>
-                    <TableHead className="w-[34%]">Description</TableHead>
-                    <TableHead className="w-[5%]">Link</TableHead>
-                    <TableHead className="w-[5%]">Action</TableHead>
+                    <TableHead className="w-[32%]">Title</TableHead>
+                    <TableHead className="w-[18%]">Company</TableHead>
+                    <TableHead className="w-[18%]">Location</TableHead>
+                    <TableHead className="w-[12%]">Action</TableHead>
+                    <TableHead className="w-[12%]">Link</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -156,41 +155,42 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                     const full = (job.description || "").replace(/\s+/g, " ").trim();
                     const short = full.length > 280 ? full.slice(0, 280) + "…" : full;
                     return (
-                      <TableRow key={job.link || idx} className="odd:bg-white even:bg-muted/30 hover:bg-accent/40">
-                        <TableCell className="font-semibold align-top break-words">
-                          {job.title}
-                        </TableCell>
-                        <TableCell className="align-top break-words">{job.firma}</TableCell>
-                        <TableCell className="align-top break-words">{job.arbeitsort}</TableCell>
-                        <TableCell
-                          title={full}
-                          className="align-top text-sm text-black max-w-[720px] break-words whitespace-pre-wrap"
-                        >
-                          {(expanded[job.link] ? full : short) || <span className="italic text-muted-foreground">(keine Beschreibung)</span>}
-                          {full && full.length > short.length && (
-                            <div className="mt-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 px-2 text-black hover:text-black"
-                                onClick={() => setExpanded((prev) => ({ ...prev, [job.link]: !prev[job.link] }))}
-                              >
-                                {expanded[job.link] ? "Weniger" : "Mehr"}
-                              </Button>
+                      <React.Fragment key={job.link || idx}>
+                        <TableRow className="odd:bg-white even:bg-muted/30 hover:bg-accent/40">
+                          <TableCell className="font-semibold align-top break-words">{job.title}</TableCell>
+                          <TableCell className="align-top break-words">{job.firma}</TableCell>
+                          <TableCell className="align-top break-words">{job.arbeitsort}</TableCell>
+                          <TableCell className="align-top">
+                            <Button variant="default" size="sm" className="text-white hover:text-white" onClick={() => onJobSelect(job)}>
+                              Apply
+                            </Button>
+                          </TableCell>
+                          <TableCell className="align-top">
+                            <Button asChild variant="link" size="sm">
+                              <a href={job.link} target="_blank" rel="noopener noreferrer">Öffnen</a>
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        <TableRow className="odd:bg-white even:bg-muted/30">
+                          <TableCell colSpan={5} className="pt-0 pb-3">
+                            <div className="text-sm text-black whitespace-pre-wrap break-words">
+                              {(expanded[job.link] ? full : short) || <span className="italic text-muted-foreground">(keine Beschreibung)</span>}
+                              {full && full.length > short.length && (
+                                <div className="mt-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 px-2 text-black hover:text-black"
+                                    onClick={() => setExpanded((prev) => ({ ...prev, [job.link]: !prev[job.link] }))}
+                                  >
+                                    {expanded[job.link] ? "Weniger" : "Mehr"}
+                                  </Button>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="align-top">
-                          <Button asChild variant="link" size="sm">
-                            <a href={job.link} target="_blank" rel="noopener noreferrer">Öffnen</a>
-                          </Button>
-                        </TableCell>
-                        <TableCell className="align-top">
-                          <Button variant="default" size="sm" className="text-white hover:text-white" onClick={() => onJobSelect(job)}>
-                            Select
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+                          </TableCell>
+                        </TableRow>
+                      </React.Fragment>
                     );
                   })}
                 </TableBody>
@@ -225,7 +225,7 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                         <a href={job.link} target="_blank" rel="noopener noreferrer">Öffnen</a>
                       </Button>
                       <Button variant="default" size="sm" className="text-white hover:text-white" onClick={() => onJobSelect(job)}>
-                        Select
+                        Apply
                       </Button>
                     </div>
                   </div>
