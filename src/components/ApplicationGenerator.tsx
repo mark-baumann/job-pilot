@@ -1146,6 +1146,7 @@ Mark Baumann`
             </div>
             )}
             
+            {isAppPasswordUnlocked && (
             <div className="space-y-2">
               <Label htmlFor="model-select">KI-Modell</Label>
               <Select value={selectedModel} onValueChange={setSelectedModel}>
@@ -1167,7 +1168,7 @@ Mark Baumann`
                 </SelectContent>
               </Select>
             </div>
-          )}
+            )}
           </CardContent>
         </Card>
 
