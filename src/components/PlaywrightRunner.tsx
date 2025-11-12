@@ -4,7 +4,6 @@ import { Progress } from "@/components/ui/progress";
 import { Job } from "@/types";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "./ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
-import { ScrollArea } from "./ui/scroll-area";
 import { toast } from "@/hooks/use-toast";
 
 export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = ({ onJobSelect }) => {
@@ -139,9 +138,9 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
 
           <div>
             <h4 className="text-sm font-medium mb-2">Alle Jobs</h4>
-            <ScrollArea className="h-[70vh] border rounded-md">
+            <div className="border rounded-md">
               <Table>
-                <TableHeader className="sticky top-0 z-10 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
+                <TableHeader>
                   <TableRow>
                     <TableHead className="w-[22%]">Title</TableHead>
                     <TableHead className="w-[14%]">Company</TableHead>
@@ -157,11 +156,8 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                     const short = full.length > 280 ? full.slice(0, 280) + "…" : full;
                     return (
                       <TableRow key={job.link || idx} className="odd:bg-white even:bg-muted/30 hover:bg-accent/40">
-                        <TableCell className="font-medium align-top break-words">
+                        <TableCell className="font-semibold align-top break-words">
                           {job.title}
-                          {job.firma && (
-                            <div className="text-[11px] text-muted-foreground">{job.firma} · {job.arbeitsort}</div>
-                          )}
                         </TableCell>
                         <TableCell className="align-top break-words">{job.firma}</TableCell>
                         <TableCell className="align-top break-words">{job.arbeitsort}</TableCell>
@@ -189,7 +185,7 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                           </Button>
                         </TableCell>
                         <TableCell className="align-top">
-                          <Button variant="outline" size="sm" className="text-black hover:text-black" onClick={() => onJobSelect(job)}>
+                          <Button variant="default" size="sm" className="text-white hover:text-white" onClick={() => onJobSelect(job)}>
                             Select
                           </Button>
                         </TableCell>
@@ -198,7 +194,7 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                   })}
                 </TableBody>
               </Table>
-            </ScrollArea>
+            </div>
           </div>
         </div>
       </CardContent>
