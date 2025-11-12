@@ -53,11 +53,19 @@ interface AnalysisResult {
 export default function ApplicationGenerator() {
   // API Configuration
   const [apiKey, setApiKey] = useState("");
+  const [openaiApiKeys, setOpenaiApiKeys] = useState<{id: string, key_value: string}[]>([]);
+  const [selectedOpenaiKeyIndex, setSelectedOpenaiKeyIndex] = useState<number>(-1);
+  const [showSelectedOpenaiKey, setShowSelectedOpenaiKey] = useState(false);
+  const [newOpenaiKey, setNewOpenaiKey] = useState("");
+  const [appPassword, setAppPassword] = useState("");
+  const [showAppPassword, setShowAppPassword] = useState(false);
+  
   const [cloudConvertApiKey, setCloudConvertApiKey] = useState("");
   const [cloudConvertApiKeys, setCloudConvertApiKeys] = useState<{id: string, key_value: string}[]>([]);
   const [selectedCloudConvertKeyIndex, setSelectedCloudConvertKeyIndex] = useState<number>(-1);
   const [showSelectedCloudConvertKey, setShowSelectedCloudConvertKey] = useState(false);
   const [newCloudConvertKey, setNewCloudConvertKey] = useState("");
+  
   const [selectedModel, setSelectedModel] = useState("gpt-4.1-2025-04-14");
   const [showApiKey, setShowApiKey] = useState(false);
   const [showCloudConvertApiKey, setShowCloudConvertApiKey] = useState(false);
@@ -123,6 +131,41 @@ export default function ApplicationGenerator() {
     { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo", description: "Günstigeres Modell" }
   ];
 
+  const loadOpenaiKeys = async () => {
+    try {
+      if (!appPassword) {
+        return;
+      }
+      const response = await fetch('/api/openai', {
+        headers: {
+          'X-App-Password': appPassword
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch OpenAI keys');
+      const data = await response.json();
+      const keys = data.keys || [];
+      setOpenaiApiKeys(keys);
+
+      if (keys.length > 0) {
+        const idxStr = localStorage.getItem("openai-api-key-selected-index");
+        const idx = idxStr ? parseInt(idxStr, 10) : 0;
+        const safeIdx = isNaN(idx) ? 0 : Math.min(Math.max(idx, 0), keys.length - 1);
+        setSelectedOpenaiKeyIndex(safeIdx);
+        setApiKey(keys[safeIdx]?.key_value || "");
+      } else {
+        setSelectedOpenaiKeyIndex(-1);
+        setApiKey("");
+      }
+    } catch (error) {
+      console.error("Failed to load OpenAI keys:", error);
+      toast({
+        title: "Fehler beim Laden der OpenAI-Schlüssel",
+        description: String(error),
+        variant: "destructive",
+      });
+    }
+  };
+
   const loadCloudConvertKeys = async () => {
     try {
       const response = await fetch('/api/cloudconvert');
@@ -153,6 +196,9 @@ export default function ApplicationGenerator() {
 
   // Load saved settings
   useEffect(() => {
+    const savedAppPassword = localStorage.getItem("app-password");
+    if (savedAppPassword) setAppPassword(savedAppPassword);
+    
     const savedApiKey = localStorage.getItem("openai-api-key");
     const savedModel = localStorage.getItem("openai-model");
     if (savedApiKey) setApiKey(savedApiKey);
@@ -161,7 +207,27 @@ export default function ApplicationGenerator() {
     loadCloudConvertKeys();
   }, []);
 
+  // Load OpenAI keys when app password changes
+  useEffect(() => {
+    if (appPassword) {
+      loadOpenaiKeys();
+    }
+  }, [appPassword]);
+
   // Save settings
+  useEffect(() => {
+    if (appPassword) localStorage.setItem("app-password", appPassword);
+  }, [appPassword]);
+
+  useEffect(() => {
+    if (selectedOpenaiKeyIndex >= 0) {
+      localStorage.setItem("openai-api-key-selected-index", String(selectedOpenaiKeyIndex));
+      setApiKey(openaiApiKeys[selectedOpenaiKeyIndex]?.key_value || "");
+    } else {
+      setApiKey("");
+    }
+  }, [openaiApiKeys, selectedOpenaiKeyIndex]);
+
   useEffect(() => {
     if (apiKey) localStorage.setItem("openai-api-key", apiKey);
   }, [apiKey]);
@@ -781,24 +847,142 @@ Mark Baumann`
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="api-key">OpenAI API-Schlüssel</Label>
+              <Label htmlFor="app-password">App Passwort (für API-Schlüssel Zugriff)</Label>
               <div className="relative">
                 <Input
-                  id="api-key"
-                  type={showApiKey ? "text" : "password"}
-                  placeholder="sk-..."
-                  value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
+                  id="app-password"
+                  type={showAppPassword ? "text" : "password"}
+                  placeholder="App Passwort eingeben"
+                  value={appPassword}
+                  onChange={(e) => setAppPassword(e.target.value)}
                   className="pr-10 bg-white border-primary/30 focus:border-primary/60 transition-colors"
                 />
                 <Button
                   variant="ghost"
                   size="sm"
                   type="button"
-                  onClick={() => setShowApiKey(!showApiKey)}
+                  onClick={() => setShowAppPassword(!showAppPassword)}
                   className="absolute right-0 top-0 h-full px-3 hover:bg-primary/10"
                 >
-                  {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  {showAppPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>OpenAI API-Schlüssel</Label>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={selectedOpenaiKeyIndex >= 0 ? String(selectedOpenaiKeyIndex) : ""}
+                  onValueChange={(val) => {
+                    const idx = parseInt(val, 10);
+                    setSelectedOpenaiKeyIndex(idx);
+                    setApiKey(openaiApiKeys[idx]?.key_value || "");
+                    setShowSelectedOpenaiKey(false);
+                  }}
+                >
+                  <SelectTrigger className="bg-white border-primary/30 focus:border-primary/60 transition-colors w-full">
+                    <SelectValue placeholder={openaiApiKeys.length ? "Schlüssel wählen" : "Kein Schlüssel gespeichert"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {openaiApiKeys.length === 0 ? (
+                      <SelectItem value="-1" disabled>
+                        Kein Schlüssel vorhanden
+                      </SelectItem>
+                    ) : (
+                      openaiApiKeys.map((k, i) => {
+                        const masked = k.key_value.length > 8 ? `•••• ${k.key_value.slice(-4)}` : "••••";
+                        return (
+                          <SelectItem key={i} value={String(i)}>
+                            {`Key ${i + 1} (${masked})`}
+                          </SelectItem>
+                        );
+                      })
+                    )}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  onClick={() => setShowSelectedOpenaiKey(!showSelectedOpenaiKey)}
+                  className="shrink-0 bg-white text-black border border-blue-200 hover:bg-blue-50 hover:text-black"
+                  disabled={selectedOpenaiKeyIndex < 0}
+                >
+                  {showSelectedOpenaiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  type="button"
+                  className="shrink-0 bg-white text-black border border-blue-200 hover:bg-blue-50 hover:text-black"
+                  onClick={async () => {
+                    if (selectedOpenaiKeyIndex >= 0) {
+                      const keyToDelete = openaiApiKeys[selectedOpenaiKeyIndex];
+                      try {
+                        await fetch('/api/openai', {
+                          method: 'DELETE',
+                          headers: { 
+                            'Content-Type': 'application/json',
+                            'X-App-Password': appPassword
+                          },
+                          body: JSON.stringify({ id: keyToDelete.id }),
+                        });
+                        toast({ title: "Schlüssel entfernt", description: "Der API-Schlüssel wurde aus der Datenbank gelöscht." });
+                        await loadOpenaiKeys();
+                      } catch (error) {
+                        toast({
+                          title: "Fehler beim Löschen",
+                          description: String(error),
+                          variant: "destructive",
+                        });
+                      }
+                    }
+                  }}
+                  disabled={selectedOpenaiKeyIndex < 0 || !appPassword}
+                >
+                  Entfernen
+                </Button>
+              </div>
+              {showSelectedOpenaiKey && selectedOpenaiKeyIndex >= 0 && (
+                <Input
+                  type={showApiKey ? "text" : "password"}
+                  value={openaiApiKeys[selectedOpenaiKeyIndex]?.key_value || ""}
+                  readOnly
+                  className="bg-white border-primary/30"
+                />
+              )}
+              <div className="flex items-center gap-2 mt-2">
+                <Input
+                  placeholder="Neuen Schlüssel eingeben (sk-...)"
+                  value={newOpenaiKey}
+                  onChange={(e) => setNewOpenaiKey(e.target.value)}
+                  className="bg-white border-primary/30"
+                />
+                <Button
+                  type="button"
+                  onClick={async () => {
+                    const v = newOpenaiKey.trim();
+                    if (!v || !appPassword) return;
+                    try {
+                      await fetch('/api/openai', {
+                        method: 'POST',
+                        headers: { 
+                          'Content-Type': 'application/json',
+                          'X-App-Password': appPassword
+                        },
+                        body: JSON.stringify({ key: v }),
+                      });
+                      setNewOpenaiKey("");
+                      toast({ title: "Schlüssel hinzugefügt", description: "Der neue API-Schlüssel wurde in der Datenbank gespeichert." });
+                      await loadOpenaiKeys();
+                    } catch (error) {
+                      toast({ title: "Fehler beim Speichern", description: String(error), variant: "destructive" });
+                    }
+                  }}
+                  disabled={!newOpenaiKey || !appPassword}
+                >
+                  Hinzufügen
                 </Button>
               </div>
             </div>

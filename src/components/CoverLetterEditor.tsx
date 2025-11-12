@@ -205,6 +205,12 @@ export default function CoverLetterEditor({
                 <Checkbox id="send-zeugnisse" checked={sendZeugnisse} onCheckedChange={(v) => onSendOptionChange("zeugnisse", Boolean(v))} />
                 <Label htmlFor="send-zeugnisse">Zeugnisse anhängen</Label>
               </div>
+              {sendZeugnisse && (
+                <div className="flex items-center gap-2 ml-4">
+                  <Checkbox id="use-compressed-zeugnis" checked={useCompressedZeugnis || false} onCheckedChange={(v) => onUseCompressedZeugnisChange && onUseCompressedZeugnisChange(Boolean(v))} />
+                  <Label htmlFor="use-compressed-zeugnis">Komprimiertes Zeugnis verwenden</Label>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <Checkbox id="send-cv" checked={sendCv} onCheckedChange={(v) => onSendOptionChange("cv", Boolean(v))} />
                 <Label htmlFor="send-cv">Lebenslauf anhängen</Label>
