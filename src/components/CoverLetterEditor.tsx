@@ -229,10 +229,6 @@ export default function CoverLetterEditor({
                   Marks Zeugnis Compressed
                 </Button>
               </div>
-              <div className="flex items-center gap-2">
-                <Checkbox id="use-compressed-zeugnis" checked={Boolean(useCompressedZeugnis)} onCheckedChange={(v) => onUseCompressedZeugnisChange && onUseCompressedZeugnisChange(Boolean(v))} />
-                <Label htmlFor="use-compressed-zeugnis">Marks Zeugnis Compressed anhängen (statt zeugnisse.pdf)</Label>
-              </div>
               {zeugnisseFileName && <p className="text-sm text-muted-foreground mt-1">Ausgewählte Datei: {zeugnisseFileName}</p>}
             </div>
           )}

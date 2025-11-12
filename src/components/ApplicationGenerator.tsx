@@ -667,44 +667,35 @@ Mark Baumann`
 
       if (sendZeugnisse) {
         try {
-          let zBlob: Blob | null = null;
+          let zeugnisBlob: Blob | null = null;
+          let zeugnisFilename = '';
+          let zeugnisContentType = '';
+
           if (useCompressedZeugnis) {
-            // Attach compressed Zeugnis (HTML or other asset) from public/ instead of the PDF
             try {
               const resp = await fetch('/zeugnis-compressed.html');
               if (resp.ok) {
-                zBlob = await resp.blob();
-                attachments.push({
-                  filename: 'Marks_Zeugnis_Compressed.html',
-                  contentType: zBlob.type || 'text/html',
-                  base64: await blobToBase64(zBlob),
-                });
+                zeugnisBlob = await resp.blob();
+                zeugnisFilename = 'Marks_Zeugnis_Compressed.html';
+                zeugnisContentType = zeugnisBlob.type || 'text/html';
               }
             } catch (e) {
               console.error('Could not fetch compressed zeugnis', e);
             }
           } else {
-            try {
-              if (zeugnisseFile) {
-                zBlob = zeugnisseFile;
-              } else {
-                const resp = await fetch('/zeugnisse.pdf');
-                if (resp.ok) {
-                  zBlob = await resp.blob();
-                }
-              }
-              if (zBlob) {
-                attachments.push({
-                  filename: zeugnisseFile?.name || 'Marks_Zeugnisse.pdf',
-                  contentType: zBlob.type || 'application/pdf',
-                  base64: await blobToBase64(zBlob),
-                });
-              }
-            } catch (e) {
-              console.error('Could not fetch zeugnisse.pdf', e);
+            zeugnisBlob = zeugnisseFile; // Use uploaded file if present
+            if (!zeugnisBlob) { // Fallback to demo file
+              const resp = await fetch('/zeugnisse.pdf');
+              if (resp.ok) zeugnisBlob = await resp.blob();
             }
+            zeugnisFilename = zeugnisseFile?.name || 'Marks_Zeugnisse.pdf';
+            zeugnisContentType = zeugnisBlob?.type || 'application/pdf';
           }
-        } catch {}
+
+          if (zeugnisBlob) {
+            attachments.push({ filename: zeugnisFilename, contentType: zeugnisContentType, base64: await blobToBase64(zeugnisBlob) });
+          }
+        } catch (e) { console.error('Error attaching zeugnis:', e) }
       }
 
       const subject = emailSubject || (titleInput ? `Bewerbung ${titleInput} - Mark Baumann` : "Bewerbung - Mark Baumann");
@@ -1260,6 +1251,7 @@ Mark Baumann`
                   const blob = await resp.blob();
                   const file = new File([blob], 'zeugnisse.pdf', { type: 'application/pdf' });
                   setZeugnisseFile(file);
+                  setUseCompressedZeugnis(false); // Make sure standard is selected
                   toast({ title: 'Zeugnisse geladen', description: 'Demodatei zeugnisse.pdf geladen.' });
                 } catch (e) {
                   toast({ title: 'Fehler', description: String(e), variant: 'destructive' });
