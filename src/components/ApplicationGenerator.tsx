@@ -909,8 +909,9 @@ Mark Baumann`
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label>OpenAI API-Schlüssel</Label>
+            {isAppPasswordUnlocked && (
+              <div className="space-y-2">
+                <Label>OpenAI API-Schlüssel</Label>
               <div className="flex items-center gap-2">
                 <Select
                   value={selectedOpenaiKeyIndex >= 0 ? String(selectedOpenaiKeyIndex) : ""}
