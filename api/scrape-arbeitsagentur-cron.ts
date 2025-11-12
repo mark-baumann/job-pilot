@@ -22,148 +22,6 @@ async function saveActivityLog(pool: Pool, status: string, duration: number, mes
   }
 }
 
-async function enrichJobsInBackground(jobLinks: { link: string; title: string }[]) {
-  console.log("Background enrichment: Starting for", jobLinks.length, "jobs");
-  
-  try {
-    const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
-    if (!connectionString) {
-      console.log("Background: No database connection, skipping enrichment");
-      return;
-    }
-    
-    const pool = new Pool({ connectionString, max: 1 });
-    
-    // Create browser with optimized settings for Vercel
-    const browser = await playwrightChromium.launch({
-      args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
-      executablePath: await chromium.executablePath(),
-      headless: true,
-    });
-
-    const page = await browser.newPage();
-    
-    // Optimize page for faster loading
-    await page.route('**/*.{png,jpg,jpeg,gif,svg,css,font}', route => route.abort());
-    await page.setViewportSize({ width: 1280, height: 720 });
-    
-    let enrichedCount = 0;
-    
-    for (let i = 0; i < jobLinks.length; i++) {
-      const { link: absoluteLink, title: jobTitle } = jobLinks[i];
-      
-      try {
-        console.log(`Background: Enriching job ${i + 1}/${jobLinks.length}: ${jobTitle}`);
-        
-        // Fast navigation with shorter timeout
-        await page.goto(absoluteLink, { 
-          waitUntil: "domcontentloaded", 
-          timeout: 15000 
-        });
-        
-        // Minimal wait for content to load
-        await page.waitForTimeout(300);
-        
-        let jobDescription = "";
-        let firma = "";
-        let arbeitsort = "";
-        
-        // Try multiple selectors for job description
-        const descriptionSelectors = [
-          '.stelle-beschreibung',
-          '.beschreibung', 
-          '[data-testid="job-description"]',
-          '.job-description',
-          '.description',
-          'div[data-automation-id="jobDescription"]',
-          '.jobad-description'
-        ];
-        
-        for (const selector of descriptionSelectors) {
-          try {
-            jobDescription = await page.locator(selector).first().innerText({ timeout: 1000 });
-            if (jobDescription.trim()) break;
-          } catch {}
-        }
-        
-        // Try multiple selectors for company
-        const companySelectors = [
-          '.firma',
-          '.company-name', 
-          '[data-testid="company-name"]',
-          '.company',
-          '[data-automation-id="companyName"]',
-          '.job-company'
-        ];
-        
-        for (const selector of companySelectors) {
-          try {
-            firma = await page.locator(selector).first().innerText({ timeout: 1000 });
-            if (firma.trim()) break;
-          } catch {}
-        }
-        
-        // Try multiple selectors for location
-        const locationSelectors = [
-          '.ort',
-          '.job-location',
-          '[data-testid="job-location"]', 
-          '.location',
-          '[data-automation-id="location"]',
-          '.job-location-text'
-        ];
-        
-        for (const selector of locationSelectors) {
-          try {
-            arbeitsort = await page.locator(selector).first().innerText({ timeout: 1000 });
-            if (arbeitsort.trim()) break;
-          } catch {}
-        }
-        
-        // Update job with details if we found any
-        if (jobDescription || firma || arbeitsort) {
-          await pool.query(
-            `UPDATE jobs 
-             SET description = $1, firma = $2, arbeitsort = $3, updated_at = NOW()
-             WHERE link = $4`,
-            [jobDescription.trim() || null, firma?.trim() || null, arbeitsort?.trim() || null, absoluteLink]
-          );
-          enrichedCount++;
-          console.log(`Background: ✅ Enriched job with details: ${jobTitle}`);
-        } else {
-          console.log(`Background: ⚠️ No details found for: ${jobTitle}`);
-        }
-        
-      } catch (e) {
-        console.log(`Background: ❌ Error enriching job ${jobTitle}:`, e instanceof Error ? e.message : String(e));
-      }
-    }
-    
-    await browser.close();
-    await pool.end();
-    
-    console.log(`Background enrichment: ✅ Completed - enriched ${enrichedCount}/${jobLinks.length} jobs`);
-    
-    // Log completion to activity logs
-    try {
-      const completionPool = new Pool({ connectionString, max: 1 });
-      await saveActivityLog(completionPool, 'SUCCESS', 0, `Background enrichment completed - ${enrichedCount}/${jobLinks.length} jobs enriched`);
-      await completionPool.end();
-    } catch {}
-    
-  } catch (error) {
-    console.error('Background enrichment failed:', error);
-    
-    // Log error to activity logs
-    try {
-      const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
-      const errorPool = new Pool({ connectionString, max: 1 });
-      await saveActivityLog(errorPool, 'ERROR', 0, `Background enrichment failed: ${error instanceof Error ? error.message : String(error)}`);
-      await errorPool.end();
-    } catch {}
-  }
-}
-
 export default async function handler(
   request: VercelRequest,
   response: VercelResponse
@@ -296,18 +154,60 @@ export default async function handler(
     
     console.log("Cron job: Extracted", jobLinks.length, "total job links from", currentPage - 1, "pages");
     
-    // Quick save basic jobs first (title + link only)
-    const quickJobs: JobData[] = jobLinks.map(({ link, title }) => ({
-      title,
-      link,
-      description: '',
-      firma: undefined,
-      arbeitsort: undefined
-    }));
+    // Random limit between 10 and 25 jobs for variety
+    const maxJobsToProcess = Math.floor(Math.random() * 16) + 10; // 10-25
+    const jobsToProcess = jobLinks.slice(0, Math.min(maxJobsToProcess, jobLinks.length));
+    console.log("Cron job: Processing", jobsToProcess.length, "jobs (random limit:", maxJobsToProcess, ")");
     
-    // Save basic jobs to database immediately
+    const jobs: JobData[] = [];
+    
+    // Visit each job page to get details (synchronous mode)
+    for (let i = 0; i < jobsToProcess.length; i++) {
+      const { link: absoluteLink, title: jobTitle } = jobsToProcess[i];
+      console.log(`Cron job: Processing job ${i + 1}/${jobsToProcess.length}: ${jobTitle}`);
+      
+      try {
+        await page.goto(absoluteLink, { waitUntil: "domcontentloaded", timeout: 20000 });
+        await page.waitForTimeout(500);
+        
+        let jobDescription = "";
+        let firma = "";
+        let arbeitsort = "";
+        
+        // Extract job details from individual job page
+        try {
+          jobDescription = await page.locator('.stelle-beschreibung, .beschreibung, [data-testid="job-description"]').innerText().catch(() => "");
+        } catch {}
+        
+        try {
+          firma = await page.locator('.firma, .company-name, [data-testid="company-name"]').innerText().catch(() => "");
+        } catch {}
+        
+        try {
+          arbeitsort = await page.locator('.ort, .job-location, [data-testid="job-location"]').innerText().catch(() => "");
+        } catch {}
+        
+        jobs.push({
+          title: jobTitle,
+          description: jobDescription,
+          link: absoluteLink,
+          firma: firma || undefined,
+          arbeitsort: arbeitsort || undefined
+        });
+        
+        console.log(`Cron job: Extracted job: ${jobTitle}`);
+        
+      } catch (e) {
+        console.log(`Cron job: Error processing job ${jobTitle}:`, e instanceof Error ? e.message : String(e));
+      }
+    }
+
+    await browser.close();
+    console.log("Cron job: Extracted", jobs.length, "jobs with details");
+
+    // Save jobs to database
     let savedJobs = 0;
-    for (const job of quickJobs) {
+    for (const job of jobs) {
       try {
         await pool.query(
           `INSERT INTO jobs (title, description, link, firma, arbeitsort) 
@@ -317,39 +217,33 @@ export default async function handler(
         );
         savedJobs++;
       } catch (error) {
-        console.warn('Error saving quick job:', error);
+        console.warn('Error saving job:', error);
       }
     }
     
-    console.log("Cron job: Quick-saved", savedJobs, "basic jobs");
-    
-    // Now enrich with details in background (non-blocking for response)
-    enrichJobsInBackground(jobLinks.slice(0, 10)); // Limit to first 10 for performance
-
-    await browser.close();
+    console.log("Cron job: Saved", savedJobs, "new jobs to database");
     
     const duration = Date.now() - startTime;
     const details = {
-      scrapedLink: selectedLink,
-      jobsFound: jobLinks.length,
+      scrapedLink: selectedLink.url,
+      jobsFound: jobs.length,
       jobsSaved: savedJobs,
       pagesProcessed: currentPage - 1,
       jobLinksFound: jobLinks.length,
-      mode: 'async',
-      backgroundEnrichment: 'started'
+      jobsProcessed: jobsToProcess.length,
+      mode: 'synchronous'
     };
     
-    // Save "PROCESSING" log first
-    await saveActivityLog(pool, 'PROCESSING', duration, 'Quick-scrape completed, background enrichment started', details);
+    await saveActivityLog(pool, 'SUCCESS', duration, 'Successfully scraped jobs with full details', details);
     
     await pool.end();
     
     response.status(200).json({ 
       success: true, 
       scrapedLink: selectedLink,
-      jobsFound: jobLinks.length,
+      jobsFound: jobs.length,
       jobsSaved: savedJobs,
-      message: `Quick-scraped ${jobLinks.length} job links, enriching details in background`
+      message: `Successfully scraped ${jobs.length} jobs with full details from ${jobLinks.length} links`
     });
     
   } catch (error) {
