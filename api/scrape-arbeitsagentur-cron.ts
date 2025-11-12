@@ -56,10 +56,18 @@ async function saveActivityLog(pool: Pool, status: string, duration: number, mes
   }
 }
 
-async function enrichJobsInBackground(pool: Pool, jobLinks: { link: string; title: string }[]) {
+async function enrichJobsInBackground(jobLinks: { link: string; title: string }[]) {
   console.log("Background enrichment: Starting for", jobLinks.length, "jobs");
   
   try {
+    const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+    if (!connectionString) {
+      console.log("Background: No database connection, skipping enrichment");
+      return;
+    }
+    
+    const pool = new Pool({ connectionString, max: 1 });
+    
     const browser = await playwrightChromium.launch({
       args: chromium.args,
       executablePath: await chromium.executablePath(),
@@ -111,6 +119,7 @@ async function enrichJobsInBackground(pool: Pool, jobLinks: { link: string; titl
     }
     
     await browser.close();
+    await pool.end();
     console.log("Background enrichment: Completed");
     
   } catch (error) {
@@ -289,10 +298,9 @@ export default async function handler(
     console.log("Cron job: Quick-saved", savedJobs, "basic jobs");
     
     // Now enrich with details in background (non-blocking for response)
-    enrichJobsInBackground(pool, jobLinks.slice(0, 10)); // Limit to first 10 for performance
+    enrichJobsInBackground(jobLinks.slice(0, 10)); // Limit to first 10 for performance
 
     await browser.close();
-    await pool.end();
     
     const duration = Date.now() - startTime;
     const details = {
@@ -305,6 +313,8 @@ export default async function handler(
     };
     
     await saveActivityLog(pool, 'SUCCESS', duration, 'Successfully scraped jobs (async mode)', details, screenshotUrl);
+    
+    await pool.end();
     
     response.status(200).json({ 
       success: true, 
