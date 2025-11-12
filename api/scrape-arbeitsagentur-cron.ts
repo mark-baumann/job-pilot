@@ -84,54 +84,71 @@ export default async function handler(
     console.log("Cron job: Current URL:", pageUrl);
     
     console.log("Cron job: Extracting job data...");
-    const jobs = await page.evaluate(() => {
-      const jobElements = document.querySelectorAll('.resultitem, .job-item, [data-href*="/jobsuche/"], .job-list-item');
-      const extractedJobs: JobData[] = [];
+    
+    // First, get all job links from the list page
+    const jobItemsLocator = page.locator('a[id^="ergebnisliste-item-"]');
+    await jobItemsLocator.first().waitFor({ timeout: 10000 }).catch(() => {});
+    const jobElements = await jobItemsLocator.all();
+    console.log("Cron job: Found", jobElements.length, "job elements");
+    
+    let jobLinks: { link: string; title: string }[] = [];
+    for (let i = 0; i < jobElements.length; i++) {
+      const jobElement = jobElements[i];
+      const jobLink = await jobElement.getAttribute("href").catch(() => null);
+      let jobTitle = await jobElement.locator("h3").innerText().catch(() => "Titel nicht verfügbar");
+      jobTitle = jobTitle.replace(/^\d+\.\s*Ergebnis\s*/, "").replace(/^:\s*/, "").trim();
+      if (jobLink) {
+        jobLinks.push({ 
+          link: new URL(jobLink, selectedLink.url).toString(), 
+          title: jobTitle 
+        });
+      }
+    }
+    
+    console.log("Cron job: Extracted", jobLinks.length, "job links");
+    
+    const jobs: JobData[] = [];
+    
+    // Now visit each job page to get details
+    for (let i = 0; i < Math.min(jobLinks.length, 10); i++) { // Limit to 10 jobs to avoid timeout
+      const { link: absoluteLink, title: jobTitle } = jobLinks[i];
+      console.log(`Cron job: Processing job ${i + 1}/${jobLinks.length}: ${jobTitle}`);
       
-      console.log('Found job elements:', jobElements.length);
-      
-      jobElements.forEach((element, index) => {
+      try {
+        await page.goto(absoluteLink, { waitUntil: "domcontentloaded", timeout: 20000 });
+        await page.waitForTimeout(1200);
+        
+        let jobDescription = "";
+        let firma = "";
+        let arbeitsort = "";
+        
+        // Extract job details from individual job page
         try {
-          // Try multiple selectors for title
-          const titleElement = element.querySelector('h3 a, h2 a, .titel a, .job-title a, [data-testid="job-title"] a, .resultitem-headline a') ||
-                             element.querySelector('h3, h2, .titel, .job-title, [data-testid="job-title"], .resultitem-headline');
-          
-          // Try multiple selectors for link
-          const linkElement = element.querySelector('a[href*="/jobsuche/"], a[href*="/job/"], .resultitem-headline a, .titel a');
-          
-          // Try multiple selectors for description
-          const descriptionElement = element.querySelector('.beschreibung, .job-description, p, .description, .resultitem-beschreibung');
-          
-          // Try multiple selectors for company
-          const companyElement = element.querySelector('.firma, .company-name, [data-testid="company-name"], .resultitem-firma');
-          
-          // Try multiple selectors for location
-          const locationElement = element.querySelector('.ort, .job-location, [data-testid="job-location"], .resultitem-ort');
-          
-          const title = titleElement?.textContent?.trim() || '';
-          const link = (linkElement as HTMLAnchorElement)?.href || '';
-          const description = descriptionElement?.textContent?.trim() || '';
-          const firma = companyElement?.textContent?.trim() || undefined;
-          const arbeitsort = locationElement?.textContent?.trim() || undefined;
-          
-          console.log(`Job ${index}: title="${title}", link="${link}"`);
-          
-          if (title && link) {
-            extractedJobs.push({
-              title,
-              description,
-              link,
-              firma,
-              arbeitsort
-            });
-          }
-        } catch (error) {
-          console.warn('Error extracting job:', error);
-        }
-      });
-      
-      return extractedJobs;
-    });
+          jobDescription = await page.locator('.stelle-beschreibung, .beschreibung, [data-testid="job-description"]').innerText().catch(() => "");
+        } catch {}
+        
+        try {
+          firma = await page.locator('.firma, .company-name, [data-testid="company-name"]').innerText().catch(() => "");
+        } catch {}
+        
+        try {
+          arbeitsort = await page.locator('.ort, .job-location, [data-testid="job-location"]').innerText().catch(() => "");
+        } catch {}
+        
+        jobs.push({
+          title: jobTitle,
+          description: jobDescription,
+          link: absoluteLink,
+          firma: firma || undefined,
+          arbeitsort: arbeitsort || undefined
+        });
+        
+        console.log(`Cron job: Extracted job: ${jobTitle}`);
+        
+      } catch (e) {
+        console.log(`Cron job: Error processing job ${jobTitle}:`, e instanceof Error ? e.message : String(e));
+      }
+    }
 
     await browser.close();
     console.log("Cron job: Extracted", jobs.length, "jobs");
