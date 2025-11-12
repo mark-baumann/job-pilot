@@ -54,7 +54,7 @@ export default function ApplicationGenerator() {
   // API Configuration
   const [apiKey, setApiKey] = useState("");
   const [cloudConvertApiKey, setCloudConvertApiKey] = useState("");
-  const [cloudConvertApiKeys, setCloudConvertApiKeys] = useState<string[]>([]);
+  const [cloudConvertApiKeys, setCloudConvertApiKeys] = useState<{id: string, key_value: string}[]>([]);
   const [selectedCloudConvertKeyIndex, setSelectedCloudConvertKeyIndex] = useState<number>(-1);
   const [showSelectedCloudConvertKey, setShowSelectedCloudConvertKey] = useState(false);
   const [newCloudConvertKey, setNewCloudConvertKey] = useState("");
@@ -123,31 +123,42 @@ export default function ApplicationGenerator() {
     { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo", description: "Günstigeres Modell" }
   ];
 
+  const loadCloudConvertKeys = async () => {
+    try {
+      const response = await fetch('/api/keys/cloudconvert');
+      if (!response.ok) throw new Error('Failed to fetch keys');
+      const data = await response.json();
+      const keys = data.keys || [];
+      setCloudConvertApiKeys(keys);
+
+      if (keys.length > 0) {
+        const idxStr = localStorage.getItem("cloudconvert-api-key-selected-index");
+        const idx = idxStr ? parseInt(idxStr, 10) : 0;
+        const safeIdx = isNaN(idx) ? 0 : Math.min(Math.max(idx, 0), keys.length - 1);
+        setSelectedCloudConvertKeyIndex(safeIdx);
+        setCloudConvertApiKey(keys[safeIdx]?.key_value || "");
+      } else {
+        setSelectedCloudConvertKeyIndex(-1);
+        setCloudConvertApiKey("");
+      }
+    } catch (error) {
+      console.error("Failed to load CloudConvert keys:", error);
+      toast({
+        title: "Fehler beim Laden der CloudConvert-Schlüssel",
+        description: String(error),
+        variant: "destructive",
+      });
+    }
+  };
+
   // Load saved settings
   useEffect(() => {
     const savedApiKey = localStorage.getItem("openai-api-key");
-    const savedCloudConvertApiKey = localStorage.getItem("cloudconvert-api-key");
-    const savedCloudConvertApiKeys = localStorage.getItem("cloudconvert-api-keys");
     const savedModel = localStorage.getItem("openai-model");
     if (savedApiKey) setApiKey(savedApiKey);
-    if (savedCloudConvertApiKeys) {
-      try {
-        const arr = JSON.parse(savedCloudConvertApiKeys) as string[];
-        if (Array.isArray(arr) && arr.length > 0) {
-          setCloudConvertApiKeys(arr);
-          const idxStr = localStorage.getItem("cloudconvert-api-key-selected-index");
-          const idx = idxStr ? parseInt(idxStr, 10) : 0;
-          const safeIdx = isNaN(idx) ? 0 : Math.min(Math.max(idx, 0), arr.length - 1);
-          setSelectedCloudConvertKeyIndex(safeIdx);
-          setCloudConvertApiKey(arr[safeIdx] || "");
-        }
-      } catch {}
-    } else if (savedCloudConvertApiKey) {
-      setCloudConvertApiKey(savedCloudConvertApiKey);
-      setCloudConvertApiKeys([savedCloudConvertApiKey]);
-      setSelectedCloudConvertKeyIndex(0);
-    }
     if (savedModel) setSelectedModel(savedModel);
+
+    loadCloudConvertKeys();
   }, []);
 
   // Save settings
@@ -156,12 +167,12 @@ export default function ApplicationGenerator() {
   }, [apiKey]);
 
   useEffect(() => {
-    if (cloudConvertApiKey) localStorage.setItem("cloudconvert-api-key", cloudConvertApiKey);
-  }, [cloudConvertApiKey]);
-
-  useEffect(() => {
-    localStorage.setItem("cloudconvert-api-keys", JSON.stringify(cloudConvertApiKeys));
-    localStorage.setItem("cloudconvert-api-key-selected-index", String(selectedCloudConvertKeyIndex));
+    if (selectedCloudConvertKeyIndex >= 0) {
+      localStorage.setItem("cloudconvert-api-key-selected-index", String(selectedCloudConvertKeyIndex));
+      setCloudConvertApiKey(cloudConvertApiKeys[selectedCloudConvertKeyIndex]?.key_value || "");
+    } else {
+      setCloudConvertApiKey("");
+    }
   }, [cloudConvertApiKeys, selectedCloudConvertKeyIndex]);
 
   useEffect(() => {
@@ -809,7 +820,7 @@ Mark Baumann`
                   onValueChange={(val) => {
                     const idx = parseInt(val, 10);
                     setSelectedCloudConvertKeyIndex(idx);
-                    setCloudConvertApiKey(cloudConvertApiKeys[idx] || "");
+                    setCloudConvertApiKey(cloudConvertApiKeys[idx]?.key_value || "");
                     setShowSelectedCloudConvertKey(false);
                   }}
                 >
@@ -823,7 +834,7 @@ Mark Baumann`
                       </SelectItem>
                     ) : (
                       cloudConvertApiKeys.map((k, i) => {
-                        const masked = k.length > 8 ? `•••• ${k.slice(-4)}` : "••••";
+                        const masked = k.key_value.length > 8 ? `•••• ${k.key_value.slice(-4)}` : "••••";
                         return (
                           <SelectItem key={i} value={String(i)}>
                             {`Key ${i + 1} (${masked})`}
@@ -848,14 +859,24 @@ Mark Baumann`
                   size="sm"
                   type="button"
                   className="shrink-0 bg-white text-black border border-blue-200 hover:bg-blue-50 hover:text-black"
-                  onClick={() => {
+                  onClick={async () => {
                     if (selectedCloudConvertKeyIndex >= 0) {
-                      const next = cloudConvertApiKeys.filter((_, i) => i !== selectedCloudConvertKeyIndex);
-                      setCloudConvertApiKeys(next);
-                      const newIdx = next.length ? 0 : -1;
-                      setSelectedCloudConvertKeyIndex(newIdx);
-                      setCloudConvertApiKey(newIdx >= 0 ? next[newIdx] : "");
-                      setShowSelectedCloudConvertKey(false);
+                      const keyToDelete = cloudConvertApiKeys[selectedCloudConvertKeyIndex];
+                      try {
+                        await fetch('/api/keys/cloudconvert', {
+                          method: 'DELETE',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: keyToDelete.id }),
+                        });
+                        toast({ title: "Schlüssel entfernt", description: "Der API-Schlüssel wurde aus der Datenbank gelöscht." });
+                        await loadCloudConvertKeys();
+                      } catch (error) {
+                        toast({
+                          title: "Fehler beim Löschen",
+                          description: String(error),
+                          variant: "destructive",
+                        });
+                      }
                     }
                   }}
                   disabled={selectedCloudConvertKeyIndex < 0}
@@ -865,7 +886,7 @@ Mark Baumann`
               </div>
               {showSelectedCloudConvertKey && selectedCloudConvertKeyIndex >= 0 && (
                 <Input
-                  type="text"
+                  type={showCloudConvertApiKey ? "text" : "password"}
                   value={cloudConvertApiKeys[selectedCloudConvertKeyIndex]}
                   readOnly
                   className="bg-white border-primary/30"
@@ -880,16 +901,23 @@ Mark Baumann`
                 />
                 <Button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     const v = newCloudConvertKey.trim();
                     if (!v) return;
-                    const next = [...cloudConvertApiKeys, v];
-                    setCloudConvertApiKeys(next);
-                    setSelectedCloudConvertKeyIndex(next.length - 1);
-                    setCloudConvertApiKey(v);
-                    setNewCloudConvertKey("");
-                    setShowSelectedCloudConvertKey(false);
+                    try {
+                      await fetch('/api/keys/cloudconvert', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key: v }),
+                      });
+                      setNewCloudConvertKey("");
+                      toast({ title: "Schlüssel hinzugefügt", description: "Der neue API-Schlüssel wurde in der Datenbank gespeichert." });
+                      await loadCloudConvertKeys();
+                    } catch (error) {
+                      toast({ title: "Fehler beim Speichern", description: String(error), variant: "destructive" });
+                    }
                   }}
+                  disabled={!newCloudConvertKey}
                 >
                   Hinzufügen
                 </Button>
@@ -1247,7 +1275,3 @@ Mark Baumann`
     </div>
   );
 }
-
-
-
-

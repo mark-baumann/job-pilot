@@ -84,6 +84,17 @@ export default defineConfig({
           return (mod as any).default(req, res);
         });
 
+        // Dev-API: CloudConvert Keys
+        server.middlewares.use("/api/keys/cloudconvert", async (req, res) => {
+          const mod = await server.ssrLoadModule(
+            path.resolve(__dirname, "api/keys/cloudconvert.ts")
+          );
+          return (mod as any).default(req, res);
+        });
+
+
+
+
         // Playwright runner middleware
         server.middlewares.use("/api/run-playwright", (req, res) => {
           if (req.method !== "POST") {

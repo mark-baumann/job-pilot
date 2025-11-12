@@ -135,7 +135,7 @@ async function scrapeAndPersist({ limitNew, onEvent }: {
         onEvent({
           type: "step",
           log: `Navigiert zu: ${jobTitle}`,
-          screenshot: await page.screenshot({ type: 'png', encoding: 'base64' })
+          screenshot: (await page.screenshot({ type: 'png', encoding: 'base64' })).toString()
         });
       } catch (e) {
         const error = e instanceof Error ? e.message : String(e);
