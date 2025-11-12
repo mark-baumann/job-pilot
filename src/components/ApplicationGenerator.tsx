@@ -16,7 +16,8 @@ import {
   Brain,
   ExternalLink,
   Eye,
-  EyeOff
+  EyeOff,
+  CheckCircle
 } from "lucide-react";
 import { saveAs } from "file-saver";
 
