@@ -56,6 +56,68 @@ async function saveActivityLog(pool: Pool, status: string, duration: number, mes
   }
 }
 
+async function enrichJobsInBackground(pool: Pool, jobLinks: { link: string; title: string }[]) {
+  console.log("Background enrichment: Starting for", jobLinks.length, "jobs");
+  
+  try {
+    const browser = await playwrightChromium.launch({
+      args: chromium.args,
+      executablePath: await chromium.executablePath(),
+      headless: true,
+    });
+
+    const page = await browser.newPage();
+    
+    for (let i = 0; i < jobLinks.length; i++) {
+      const { link: absoluteLink, title: jobTitle } = jobLinks[i];
+      
+      try {
+        console.log(`Background: Enriching job ${i + 1}/${jobLinks.length}: ${jobTitle}`);
+        
+        await page.goto(absoluteLink, { waitUntil: "domcontentloaded", timeout: 15000 });
+        await page.waitForTimeout(500);
+        
+        let jobDescription = "";
+        let firma = "";
+        let arbeitsort = "";
+        
+        // Extract job details from individual job page
+        try {
+          jobDescription = await page.locator('.stelle-beschreibung, .beschreibung, [data-testid="job-description"]').innerText().catch(() => "");
+        } catch {}
+        
+        try {
+          firma = await page.locator('.firma, .company-name, [data-testid="company-name"]').innerText().catch(() => "");
+        } catch {}
+        
+        try {
+          arbeitsort = await page.locator('.ort, .job-location, [data-testid="job-location"]').innerText().catch(() => "");
+        } catch {}
+        
+        // Update job with details
+        if (jobDescription || firma || arbeitsort) {
+          await pool.query(
+            `UPDATE jobs 
+             SET description = $1, firma = $2, arbeitsort = $3 
+             WHERE link = $4`,
+            [jobDescription, firma || null, arbeitsort || null, absoluteLink]
+          );
+          console.log(`Background: Updated job with details: ${jobTitle}`);
+        }
+        
+      } catch (e) {
+        console.log(`Background: Error enriching job ${jobTitle}:`, e instanceof Error ? e.message : String(e));
+      }
+    }
+    
+    await browser.close();
+    console.log("Background enrichment: Completed");
+    
+  } catch (error) {
+    console.error('Background enrichment failed:', error);
+  }
+}
+
 export default async function handler(
   request: VercelRequest,
   response: VercelResponse
@@ -199,55 +261,18 @@ export default async function handler(
     
     console.log("Cron job: Extracted", jobLinks.length, "total job links from", currentPage - 1, "pages");
     
-    const jobs: JobData[] = [];
+    // Quick save basic jobs first (title + link only)
+    const quickJobs: JobData[] = jobLinks.map(({ link, title }) => ({
+      title,
+      link,
+      description: '',
+      firma: undefined,
+      arbeitsort: undefined
+    }));
     
-    // Now visit each job page to get details
-    for (let i = 0; i < jobLinks.length; i++) { // Process ALL jobs, not just 10
-      const { link: absoluteLink, title: jobTitle } = jobLinks[i];
-      console.log(`Cron job: Processing job ${i + 1}/${jobLinks.length}: ${jobTitle}`);
-      
-      try {
-        await page.goto(absoluteLink, { waitUntil: "domcontentloaded", timeout: 20000 });
-        await page.waitForTimeout(800); // Reduced wait time for faster processing
-        
-        let jobDescription = "";
-        let firma = "";
-        let arbeitsort = "";
-        
-        // Extract job details from individual job page
-        try {
-          jobDescription = await page.locator('.stelle-beschreibung, .beschreibung, [data-testid="job-description"]').innerText().catch(() => "");
-        } catch {}
-        
-        try {
-          firma = await page.locator('.firma, .company-name, [data-testid="company-name"]').innerText().catch(() => "");
-        } catch {}
-        
-        try {
-          arbeitsort = await page.locator('.ort, .job-location, [data-testid="job-location"]').innerText().catch(() => "");
-        } catch {}
-        
-        jobs.push({
-          title: jobTitle,
-          description: jobDescription,
-          link: absoluteLink,
-          firma: firma || undefined,
-          arbeitsort: arbeitsort || undefined
-        });
-        
-        console.log(`Cron job: Extracted job: ${jobTitle}`);
-        
-      } catch (e) {
-        console.log(`Cron job: Error processing job ${jobTitle}:`, e instanceof Error ? e.message : String(e));
-      }
-    }
-
-    await browser.close();
-    console.log("Cron job: Extracted", jobs.length, "jobs");
-
-    // Save jobs to database
+    // Save basic jobs to database immediately
     let savedJobs = 0;
-    for (const job of jobs) {
+    for (const job of quickJobs) {
       try {
         await pool.query(
           `INSERT INTO jobs (title, description, link, firma, arbeitsort) 
@@ -257,30 +282,36 @@ export default async function handler(
         );
         savedJobs++;
       } catch (error) {
-        console.warn('Error saving job:', error);
+        console.warn('Error saving quick job:', error);
       }
     }
+    
+    console.log("Cron job: Quick-saved", savedJobs, "basic jobs");
+    
+    // Now enrich with details in background (non-blocking for response)
+    enrichJobsInBackground(pool, jobLinks.slice(0, 10)); // Limit to first 10 for performance
 
+    await browser.close();
     await pool.end();
-    console.log("Cron job: Saved", savedJobs, "new jobs to database");
     
     const duration = Date.now() - startTime;
     const details = {
       scrapedLink: selectedLink,
-      jobsFound: jobs.length,
+      jobsFound: jobLinks.length,
       jobsSaved: savedJobs,
       pagesProcessed: currentPage - 1,
-      jobLinksFound: jobLinks.length
+      jobLinksFound: jobLinks.length,
+      mode: 'async'
     };
     
-    await saveActivityLog(pool, 'SUCCESS', duration, 'Successfully scraped jobs', details, screenshotUrl || undefined);
+    await saveActivityLog(pool, 'SUCCESS', duration, 'Successfully scraped jobs (async mode)', details, screenshotUrl);
     
     response.status(200).json({ 
       success: true, 
       scrapedLink: selectedLink,
-      jobsFound: jobs.length,
+      jobsFound: jobLinks.length,
       jobsSaved: savedJobs,
-      message: `Successfully processed ${jobLinks.length} job links from ${currentPage - 1} pages`
+      message: `Quick-scraped ${jobLinks.length} job links, enriching details in background`
     });
     
   } catch (error) {
