@@ -118,11 +118,35 @@ export default function ApplicationGenerator() {
       const savedPassword = getCookie('app-password');
       if (savedPassword) {
         setAppPassword(savedPassword);
-        // Auto-unlock if password is saved
-        handleUnlockAppPassword();
+        // Auto-unlock with a small delay to ensure state is set
+        setTimeout(() => {
+          validateSavedPassword(savedPassword);
+        }, 100);
       }
     } catch {}
   }, []);
+
+  // Separate function for validating saved password
+  const validateSavedPassword = async (password: string) => {
+    try {
+      const response = await fetch('/api/verify-app-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      
+      if (response.ok) {
+        const { valid } = await response.json();
+        if (valid) {
+          setIsAppPasswordUnlocked(true);
+          loadOpenaiKeys();
+          loadCloudConvertKeys();
+        }
+      }
+    } catch (error) {
+      console.log('Auto-unlock failed, user will need to unlock manually');
+    }
+  };
 
   // ... (rest of the component)
   // Processing State
