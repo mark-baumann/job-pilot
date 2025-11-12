@@ -124,14 +124,13 @@ export default function SourcesManager({ isOpen, onClose }: SourcesManagerProps)
         <div className="mt-6 space-y-6">
           {/* Add new link */}
           <div className="space-y-4">
-            <h3 className="text-sm font-medium">Neue Quelle hinzufügen</h3>
             <div className="space-y-2">
               <Label>URL</Label>
               <Input
                 placeholder="https://www.arbeitsagentur.de/jobsuche..."
                 value={newUrl}
                 onChange={(e) => setNewUrl(e.target.value)}
-                className="bg-white border-primary/30"
+                className="bg-white border-primary/30 text-black"
               />
             </div>
             <Button onClick={addLink} className="w-full">
@@ -143,9 +142,6 @@ export default function SourcesManager({ isOpen, onClose }: SourcesManagerProps)
           {/* Links list */}
           <div className="space-y-3">
             <h3 className="text-sm font-medium">Aktuelle Links</h3>
-            <div className="text-sm text-muted-foreground bg-blue-50 p-3 rounded-lg">
-              <strong>Automatischer Cron Job:</strong> Die Datenbank wird jede Stunde automatisch mit zufällig ausgewählten aktiven Quellen gefüllt.
-            </div>
             {links.length === 0 ? (
               <p className="text-sm text-muted-foreground">Keine Quellen konfiguriert</p>
             ) : (
