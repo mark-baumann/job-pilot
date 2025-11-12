@@ -14,7 +14,9 @@ import {
   Upload,
   Sparkles,
   Brain,
-  ExternalLink
+  ExternalLink,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { saveAs } from "file-saver";
 
