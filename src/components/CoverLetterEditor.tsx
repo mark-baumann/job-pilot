@@ -37,8 +37,6 @@ interface CoverLetterEditorProps {
   sendCv: boolean;
   onSendOptionChange: (field: "docx" | "pdf" | "zeugnisse" | "cv", value: boolean) => void;
   onCvUploadClick?: () => void;
-  useCompressedZeugnis?: boolean;
-  onUseCompressedZeugnisChange?: (v: boolean) => void;
   onSendEmail: () => void;
   isEmailSending: boolean;
   onReset: () => void;

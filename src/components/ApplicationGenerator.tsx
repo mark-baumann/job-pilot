@@ -1522,8 +1522,6 @@ Mark Baumann`
                 if (field === "cv") setSendCv(value);
               }}
               onCvUploadClick={() => document.getElementById('resume-upload')?.click()}
-              useCompressedZeugnis={useCompressedZeugnis}
-              onUseCompressedZeugnisChange={(v) => setUseCompressedZeugnis(v)}
               onSendEmail={handleSendEmail}
               isEmailSending={isEmailSending}
               onReset={handleResetApplication}
