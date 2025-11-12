@@ -1,4 +1,3 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { Pool } from "pg";
 
 interface CronLog {
@@ -12,8 +11,8 @@ interface CronLog {
 }
 
 export default async function handler(
-  request: VercelRequest,
-  response: VercelResponse
+  request: any,
+  response: any
 ) {
   try {
     const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
@@ -31,8 +30,7 @@ export default async function handler(
         status VARCHAR(20) NOT NULL,
         duration INTEGER NOT NULL,
         message TEXT,
-        details JSONB,
-        screenshot_url TEXT
+        details JSONB
       );
     `);
 
@@ -51,8 +49,7 @@ export default async function handler(
       status: row.status,
       duration: row.duration,
       message: row.message,
-      details: row.details,
-      screenshot: row.screenshot_url
+      details: row.details
     }));
 
     response.status(200).json({ 

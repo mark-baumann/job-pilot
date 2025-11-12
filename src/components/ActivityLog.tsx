@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -18,7 +18,6 @@ interface CronLog {
   duration: number;
   message?: string;
   details?: any;
-  screenshot?: string;
 }
 
 export default function ActivityLog({ isOpen, onClose }: ActivityLogProps) {
@@ -160,7 +159,7 @@ export default function ActivityLog({ isOpen, onClose }: ActivityLogProps) {
                       )}
                       
                       {log.details && (
-                        <div className="mb-3">
+                        <div>
                           <div className="text-sm font-medium mb-1">Details:</div>
                           <div className="text-sm bg-muted p-2 rounded font-mono text-xs">
                             <pre>{JSON.stringify(log.details, null, 2)}</pre>

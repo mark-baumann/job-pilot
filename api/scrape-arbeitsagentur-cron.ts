@@ -11,46 +11,12 @@ interface JobData {
   arbeitsort?: string;
 }
 
-async function uploadScreenshotToVercel(base64Screenshot: string): Promise<string | null> {
-  try {
-    if (!process.env.BLOB_READ_WRITE_TOKEN) {
-      console.log("Cron job: No BLOB_READ_WRITE_TOKEN, skipping screenshot upload");
-      return null;
-    }
-
-    // Convert base64 to buffer
-    const base64Data = base64Screenshot.replace(/^data:image\/png;base64,/, '');
-    const buffer = Buffer.from(base64Data, 'base64');
-
-    // Upload to Vercel Blob
-    const blobResponse = await fetch('https://blob.vercel-storage.com/upload', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
-        'Content-Type': 'image/png',
-        'x-api-version': '1',
-      },
-      body: buffer,
-    });
-
-    if (!blobResponse.ok) {
-      throw new Error(`Failed to upload screenshot: ${blobResponse.statusText}`);
-    }
-
-    const blobData = await blobResponse.json();
-    return blobData.url;
-  } catch (error) {
-    console.error('Failed to upload screenshot:', error);
-    return null;
-  }
-}
-
-async function saveActivityLog(pool: Pool, status: string, duration: number, message?: string, details?: any, screenshotUrl?: string) {
+async function saveActivityLog(pool: Pool, status: string, duration: number, message?: string, details?: any) {
   try {
     await pool.query(`
-      INSERT INTO activity_logs (status, duration, message, details, screenshot_url)
-      VALUES ($1, $2, $3, $4, $5)
-    `, [status, duration, message, details ? JSON.stringify(details) : null, screenshotUrl]);
+      INSERT INTO activity_logs (status, duration, message, details)
+      VALUES ($1, $2, $3, $4)
+    `, [status, duration, message, details ? JSON.stringify(details) : null]);
   } catch (error) {
     console.error('Failed to save activity log:', error);
   }
@@ -160,8 +126,7 @@ export default async function handler(
         status VARCHAR(20) NOT NULL,
         duration INTEGER NOT NULL,
         message TEXT,
-        details JSONB,
-        screenshot_url TEXT
+        details JSONB
       );
     `);
 
@@ -195,30 +160,14 @@ export default async function handler(
     // Direct scraping instead of calling API
     const browser = await playwrightChromium.launch({
       args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
       executablePath: await chromium.executablePath(),
-      headless: chromium.headless,
+      headless: true,
     });
 
     const page = await browser.newPage();
     
     console.log("Cron job: Navigating to:", selectedLink.url);
     await page.goto(selectedLink.url, { waitUntil: 'networkidle' });
-    
-    // Take screenshot for debugging and upload to Vercel Blob
-    const screenshot = await page.screenshot({ encoding: 'base64' });
-    console.log("Cron job: Page screenshot taken (length:", screenshot.length, ")");
-    
-    let screenshotUrl: string | null = null;
-    try {
-      screenshotUrl = await uploadScreenshotToVercel(`data:image/png;base64,${screenshot}`);
-      if (screenshotUrl) {
-        console.log("Cron job: Screenshot uploaded to:", screenshotUrl);
-      }
-    } catch (screenshotError) {
-      console.log("Cron job: Screenshot upload failed, continuing without screenshot:", screenshotError instanceof Error ? screenshotError.message : String(screenshotError));
-      // Continue normally even if screenshot upload fails
-    }
     
     // Get page title and URL to confirm we're on the right page
     const pageTitle = await page.title();
@@ -318,7 +267,7 @@ export default async function handler(
       mode: 'async'
     };
     
-    await saveActivityLog(pool, 'SUCCESS', duration, 'Successfully scraped jobs (async mode)', details, screenshotUrl);
+    await saveActivityLog(pool, 'SUCCESS', duration, 'Successfully scraped jobs (async mode)', details);
     
     await pool.end();
     
