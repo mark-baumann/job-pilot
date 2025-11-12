@@ -869,7 +869,7 @@ Mark Baumann`
       case 'completed':
         return <CheckCircle className="w-4 h-4 text-success" />;
       case 'processing':
-        return <Loader2 className="w-4 h-4 text-primary animate-spin" />;
+        return <Loader className="w-4 h-4 text-primary animate-spin" />;
       case 'error':
         return <AlertCircle className="w-4 h-4 text-destructive" />;
       default:
@@ -1320,7 +1320,7 @@ Mark Baumann`
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  <Loader className="w-5 h-5 mr-2 animate-spin" />
                   Generiere Anschreiben...
                 </>
               ) : (

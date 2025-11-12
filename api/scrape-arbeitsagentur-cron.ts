@@ -202,7 +202,8 @@ export default async function handler(
       success: true, 
       scrapedLink: selectedLink,
       jobsFound: jobs.length,
-      jobsSaved: savedJobs
+      jobsSaved: savedJobs,
+      message: `Successfully processed ${jobLinks.length} job links from ${currentPage - 1} pages`
     });
     
   } catch (error) {

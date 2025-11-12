@@ -8,7 +8,7 @@ import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Edit3, Save, Download, FileText, Loader2 } from "lucide-react";
+import { Edit3, Save, Download, FileText, Loader } from "lucide-react";
 
 interface CoverLetterEditorProps {
   initialText: string;
@@ -147,7 +147,7 @@ export default function CoverLetterEditor({
           <Button onClick={onDownloadPdf} disabled={isPdfLoading} className="flex-1 text-black bg-white border border-blue-200">
             {isPdfLoading ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" /> PDF wird erstellt...
+                <Loader className="w-4 h-4 mr-2 animate-spin" /> PDF wird erstellt...
               </>
             ) : (
               <>
@@ -301,7 +301,7 @@ export default function CoverLetterEditor({
             <Button onClick={onSendEmail} disabled={isEmailSending || !emailTo} className="bg-blue-600 hover:bg-blue-700 text-white">
               {isEmailSending ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Senden...
+                  <Loader className="w-4 h-4 mr-2 animate-spin" /> Senden...
                 </>
               ) : (
                 "E-Mail senden"
