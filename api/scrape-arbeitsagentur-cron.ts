@@ -209,9 +209,15 @@ export default async function handler(
     const screenshot = await page.screenshot({ encoding: 'base64' });
     console.log("Cron job: Page screenshot taken (length:", screenshot.length, ")");
     
-    const screenshotUrl = await uploadScreenshotToVercel(`data:image/png;base64,${screenshot}`);
-    if (screenshotUrl) {
-      console.log("Cron job: Screenshot uploaded to:", screenshotUrl);
+    let screenshotUrl: string | null = null;
+    try {
+      screenshotUrl = await uploadScreenshotToVercel(`data:image/png;base64,${screenshot}`);
+      if (screenshotUrl) {
+        console.log("Cron job: Screenshot uploaded to:", screenshotUrl);
+      }
+    } catch (screenshotError) {
+      console.log("Cron job: Screenshot upload failed, continuing without screenshot:", screenshotError instanceof Error ? screenshotError.message : String(screenshotError));
+      // Continue normally even if screenshot upload fails
     }
     
     // Get page title and URL to confirm we're on the right page
