@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, MapPin, Building, ExternalLink } from "lucide-react";
+import { Briefcase, MapPin, Building, ExternalLink, Settings } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Job {
@@ -15,11 +15,12 @@ interface Job {
 
 interface JobListProps {
   onJobSelect: (job: Job) => void;
+  onSourcesClick: () => void;
 }
 
-export default function JobList({ onJobSelect }: JobListProps) {
+export default function JobList({ onJobSelect, onSourcesClick }: JobListProps) {
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadJobs();
@@ -48,85 +49,97 @@ export default function JobList({ onJobSelect }: JobListProps) {
           <div className="flex items-center gap-2">
             <Briefcase className="w-5 h-5 text-primary" />
             Job-Liste
+            {!isLoading && (
+              <Badge variant="secondary" className="ml-2">
+                {jobs.length} Treffer
+              </Badge>
+            )}
           </div>
           <Button 
             variant="outline" 
             size="sm" 
-            onClick={loadJobs}
-            disabled={isLoading}
+            onClick={onSourcesClick}
           >
-            {isLoading ? "Laden..." : "Aktualisieren"}
+            <Settings className="w-4 h-4 mr-2" />
+            Quellen verwalten
           </Button>
         </CardTitle>
         <CardDescription>
           Aktuelle Stellen aus der Datenbank (automatisch via Cron Job gefüllt)
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {isLoading ? (
-          <div className="text-center py-8 text-muted-foreground">
-            Jobs werden geladen...
-          </div>
-        ) : jobs.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Briefcase className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Keine Jobs gefunden</p>
-            <p className="text-sm">Fügen Sie Quellen hinzu und warten Sie auf den nächsten Cron Job</p>
-          </div>
-        ) : (
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {jobs.map((job, index) => (
-              <div 
-                key={index} 
-                className="p-4 border rounded-lg hover:bg-blue-50 cursor-pointer transition-colors"
-                onClick={() => onJobSelect(job)}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-base mb-2 line-clamp-2">
-                      {job.title}
-                    </h3>
-                    <div className="space-y-1 text-sm text-muted-foreground">
-                      {job.firma && (
-                        <div className="flex items-center gap-2">
-                          <Building className="w-4 h-4" />
-                          <span>{job.firma}</span>
-                        </div>
-                      )}
-                      {job.arbeitsort && (
-                        <div className="flex items-center gap-2">
-                          <MapPin className="w-4 h-4" />
-                          <span>{job.arbeitsort}</span>
-                        </div>
+      <CardContent className="p-0">
+        <div className="max-h-[600px] overflow-y-auto">
+          {isLoading ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p>Jobs werden geladen...</p>
+            </div>
+          ) : jobs.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground px-6">
+              <Briefcase className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <h3 className="text-lg font-medium mb-2">Keine Jobs gefunden</h3>
+              <p className="text-sm mb-4">Fügen Sie Quellen hinzu und warten Sie auf den nächsten Cron Job</p>
+              <Button onClick={onSourcesClick} variant="outline">
+                <Settings className="w-4 h-4 mr-2" />
+                Quellen konfigurieren
+              </Button>
+            </div>
+          ) : (
+            <div className="divide-y">
+              {jobs.map((job, index) => (
+                <div 
+                  key={index} 
+                  className="p-6 hover:bg-blue-50 cursor-pointer transition-colors group"
+                  onClick={() => onJobSelect(job)}
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-lg mb-3 text-gray-900 group-hover:text-blue-600 transition-colors">
+                        {job.title}
+                      </h3>
+                      <div className="space-y-2 text-sm text-gray-600 mb-3">
+                        {job.firma && (
+                          <div className="flex items-center gap-2">
+                            <Building className="w-4 h-4 text-gray-400" />
+                            <span className="font-medium">{job.firma}</span>
+                          </div>
+                        )}
+                        {job.arbeitsort && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            <span>{job.arbeitsort}</span>
+                          </div>
+                        )}
+                      </div>
+                      {job.description && (
+                        <p className="text-sm text-gray-600 line-clamp-3 leading-relaxed">
+                          {job.description}
+                        </p>
                       )}
                     </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="shrink-0">
-                      Auswählen
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        window.open(job.link, '_blank');
-                      }}
-                      className="shrink-0"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </Button>
+                    <div className="flex flex-col items-center gap-3">
+                      <Badge variant="secondary" className="shrink-0 px-3 py-1">
+                        Auswählen
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(job.link, '_blank');
+                        }}
+                        className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
-                {job.description && (
-                  <p className="mt-3 text-sm text-muted-foreground line-clamp-3">
-                    {job.description}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

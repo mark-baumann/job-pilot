@@ -910,21 +910,10 @@ Mark Baumann`
         </div>
 
         {/* Job List */}
-        <JobList onJobSelect={handleJobSelect} />
-
-        {/* Sources Manager Button */}
-        <Card className="w-full bg-white shadow-xl border border-blue-200 rounded-2xl text-black">
-          <CardContent className="pt-6">
-            <Button
-              onClick={() => setShowSourcesManager(!showSourcesManager)}
-              className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-200 font-medium"
-              size="lg"
-            >
-              <ExternalLink className="w-5 h-5 mr-2" />
-              Quellen-Verwaltung
-            </Button>
-          </CardContent>
-        </Card>
+        <JobList 
+          onJobSelect={handleJobSelect} 
+          onSourcesClick={() => setShowSourcesManager(!showSourcesManager)}
+        />
 
         {/* Sources Manager */}
         {showSourcesManager && <SourcesManager />}
