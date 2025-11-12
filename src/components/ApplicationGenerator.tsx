@@ -901,14 +901,15 @@ Mark Baumann`
                 </Button>
               </div>
               {isAppPasswordUnlocked && (
-                <p className="text-sm text-green-600 flex items-center gap-1">
-                  <CheckCircle className="w-4 h-4" /> API-Schlüssel-Ansicht entsperrt.
-                </p>
-              </div>
+                <div>
+                  <p className="text-sm text-green-600 flex items-center gap-1">
+                    <CheckCircle className="w-4 h-4" /> API-Schlüssel-Ansicht entsperrt.
+                  </p>
+                </div>
+              )}
             </div>
 
-            {isAppPasswordUnlocked && (
-              <div className="space-y-2">
+            <div className="space-y-2">
               <Label>OpenAI API-Schlüssel</Label>
               <div className="flex items-center gap-2">
                 <Select
@@ -918,7 +919,6 @@ Mark Baumann`
                     setSelectedOpenaiKeyIndex(idx);
                     setApiKey(openaiApiKeys[idx]?.key_value || "");
                     setShowSelectedOpenaiKey(false);
-                    }
                   }}
                 >
                   <SelectTrigger className="bg-white border-primary/30 focus:border-primary/60 transition-colors w-full">
@@ -1030,19 +1030,18 @@ Mark Baumann`
             </div>
             )}
             {isAppPasswordUnlocked && (
-            <div className="space-y-2">
-              <Label>CloudConvert API-Schlüssel (für PDF-Export)</Label>
-              <div className="flex items-center gap-2">
-                <Select
-                  value={selectedCloudConvertKeyIndex >= 0 ? String(selectedCloudConvertKeyIndex) : ""}
-                  onValueChange={(val) => {
-                    const idx = parseInt(val, 10);
-                    setSelectedCloudConvertKeyIndex(idx);
-                    setCloudConvertApiKey(cloudConvertApiKeys[idx]?.key_value || "");
-                    setShowSelectedCloudConvertKey(false);
-                    }
-                  }}
-                >
+              <div className="space-y-2">
+                <Label>CloudConvert API-Schlüssel (für PDF-Export)</Label>
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={selectedCloudConvertKeyIndex >= 0 ? String(selectedCloudConvertKeyIndex) : ""}
+                    onValueChange={(val) => {
+                      const idx = parseInt(val, 10);
+                      setSelectedCloudConvertKeyIndex(idx);
+                      setCloudConvertApiKey(cloudConvertApiKeys[idx]?.key_value || "");
+                      setShowSelectedCloudConvertKey(false);
+                    }}
+                  >
                   <SelectTrigger className="bg-white border-primary/30 focus:border-primary/60 transition-colors w-full">
                     <SelectValue placeholder={cloudConvertApiKeys.length ? "Schlüssel wählen" : "Kein Schlüssel gespeichert"} />
                   </SelectTrigger>
@@ -1145,29 +1144,29 @@ Mark Baumann`
               </div>
             </div>
             )}
-            {isAppPasswordUnlocked && (
-              <div className="space-y-2">
-                <Label htmlFor="model-select">KI-Modell</Label>
-                <Select value={selectedModel} onValueChange={setSelectedModel}>
-                  <SelectTrigger className="bg-white border-primary/30 focus:border-primary/60 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <Brain className="w-4 h-4 text-primary" />
-                      <SelectValue placeholder="Wählen Sie ein Modell" />
-                    </div>
-                  </SelectTrigger>
-                  <SelectContent className="bg-white backdrop-blur-sm border-primary/20 shadow-xl">
-                    {gptModels.map((model) => (
-                      <SelectItem key={model.value} value={model.value} className="hover:bg-primary/10 focus:bg-primary/10 text-black">
-                        <div className="flex flex-col">
-                          <span className="font-medium text-black">{model.label}</span>
-                          <span className="text-xs text-muted-foreground">{model.description}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="model-select">KI-Modell</Label>
+              <Select value={selectedModel} onValueChange={setSelectedModel}>
+                <SelectTrigger className="bg-white border-primary/30 focus:border-primary/60 transition-colors">
+                  <div className="flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-primary" />
+                    <SelectValue placeholder="Wählen Sie ein Modell" />
+                  </div>
+                </SelectTrigger>
+                <SelectContent className="bg-white backdrop-blur-sm border-primary/20 shadow-xl">
+                  {gptModels.map((model) => (
+                    <SelectItem key={model.value} value={model.value} className="hover:bg-primary/10 focus:bg-primary/10 text-black">
+                      <div className="flex flex-col">
+                        <span className="font-medium text-black">{model.label}</span>
+                        <span className="text-xs text-muted-foreground">{model.description}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           </CardContent>
         </Card>
 
