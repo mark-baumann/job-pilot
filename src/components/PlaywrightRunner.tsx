@@ -185,8 +185,9 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                             <Button asChild variant="link" size="sm" className="p-0 h-auto">
                               <a href={job.link} target="_blank" rel="noopener noreferrer">Öffnen</a>
                             </Button>
-                          </TableCell>
-                        </TableRow>);
+                          </div>
+                        </TableCell>
+                      </TableRow>);
                   })}
                 </TableBody>
               </Table>
