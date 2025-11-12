@@ -1265,6 +1265,11 @@ Mark Baumann`
                   toast({ title: 'Fehler', description: String(e), variant: 'destructive' });
                 }
               }}
+              onLoadDemoZeugnisCompressed={() => {
+                setUseCompressedZeugnis(true);
+                setZeugnisseFile(null);
+                toast({ title: 'Komprimiertes Zeugnis ausgewählt', description: 'Beim Senden wird "Marks_Zeugnis_Compressed.html" angehängt.' });
+              }}
               onSendEmail={handleSendEmail}
               isEmailSending={isEmailSending}
               onReset={handleResetApplication}

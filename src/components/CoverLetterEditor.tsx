@@ -38,6 +38,7 @@ interface CoverLetterEditorProps {
   onSendOptionChange: (field: "docx" | "pdf" | "zeugnisse" | "cv", value: boolean) => void;
   onZeugnisseUpload: (file: File) => void;
   zeugnisseFileName?: string;
+  onLoadDemoZeugnisCompressed: () => void;
   onLoadDemoZeugnisse: () => void;
   onCvUploadClick?: () => void;
   useCompressedZeugnis?: boolean;
@@ -75,6 +76,7 @@ export default function CoverLetterEditor({
   onSendOptionChange,
   onZeugnisseUpload,
   zeugnisseFileName,
+  onLoadDemoZeugnisCompressed,
   onLoadDemoZeugnisse,
   onSendEmail,
   useCompressedZeugnis,
@@ -223,6 +225,9 @@ export default function CoverLetterEditor({
                 <Button type="button" variant="outline" className="self-end bg-white text-black border-blue-200" onClick={onLoadDemoZeugnisse}>
                   Marks Zeugnisse
                 </Button>
+                <Button type="button" variant="outline" className="self-end bg-white text-black border-blue-200" onClick={onLoadDemoZeugnisCompressed}>
+                  Marks Zeugnis Compressed
+                </Button>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="use-compressed-zeugnis" checked={Boolean(useCompressedZeugnis)} onCheckedChange={(v) => onUseCompressedZeugnisChange && onUseCompressedZeugnisChange(Boolean(v))} />
@@ -348,5 +353,3 @@ export default function CoverLetterEditor({
     </Card>
   );
 }
-
-
