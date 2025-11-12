@@ -59,14 +59,12 @@ export default function JobList({ onJobSelect, onSourcesClick }: JobListProps) {
             variant="outline" 
             size="sm" 
             onClick={onSourcesClick}
+            className="text-white hover:text-white border-white hover:bg-white hover:text-primary"
           >
             <Settings className="w-4 h-4 mr-2" />
             Quellen verwalten
           </Button>
         </CardTitle>
-        <CardDescription>
-          Aktuelle Stellen aus der Datenbank (automatisch via Cron Job gefüllt)
-        </CardDescription>
       </CardHeader>
       <CardContent className="p-0">
         <div className="max-h-[600px] overflow-y-auto">
@@ -80,7 +78,7 @@ export default function JobList({ onJobSelect, onSourcesClick }: JobListProps) {
               <Briefcase className="w-16 h-16 mx-auto mb-4 opacity-50" />
               <h3 className="text-lg font-medium mb-2">Keine Jobs gefunden</h3>
               <p className="text-sm mb-4">Fügen Sie Quellen hinzu und warten Sie auf den nächsten Cron Job</p>
-              <Button onClick={onSourcesClick} variant="outline">
+              <Button onClick={onSourcesClick} variant="outline" className="text-white hover:text-white border-white hover:bg-white hover:text-primary">
                 <Settings className="w-4 h-4 mr-2" />
                 Quellen konfigurieren
               </Button>

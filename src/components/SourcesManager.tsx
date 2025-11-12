@@ -17,7 +17,16 @@ interface JobLink {
 }
 
 export default function SourcesManager() {
-  const [links, setLinks] = useState<JobLink[]>([]);
+  const [links, setLinks] = useState<JobLink[]>([
+    {
+      id: 1,
+      url: "https://www.arbeitsagentur.de/jobsuche/suche/detaillierte-benachrichtigung.html?was=entwickler&wo=",
+      title: "Arbeitsagentur Entwickler (Demo)",
+      active: true,
+      created_at: new Date().toISOString(),
+      last_used: null
+    }
+  ]);
   const [newUrl, setNewUrl] = useState("");
   const [newTitle, setNewTitle] = useState("");
 
