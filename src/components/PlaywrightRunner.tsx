@@ -138,13 +138,6 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
 
           <div>
             <h4 className="text-sm font-medium mb-2">Alle Jobs</h4>
-            {(() => {
-              const rowHeight = 48; // approximate row height
-              const headerHeight = 56; // header + padding
-              const minH = 240; // minimum height
-              const maxH = 720; // cap height
-              const computed = Math.min(maxH, Math.max(minH, headerHeight + jobs.length * rowHeight));
-              return (
             <ScrollArea className="h-[70vh] border rounded-md">
               <Table>
                 <TableHeader className="sticky top-0 z-10 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
@@ -193,13 +186,6 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                 </TableBody>
               </Table>
             </ScrollArea>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </ScrollArea>
-              );
-            })()}
           </div>
         </div>
       </CardContent>
