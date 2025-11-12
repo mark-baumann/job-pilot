@@ -154,8 +154,8 @@ export default async function handler(
     
     console.log("Cron job: Extracted", jobLinks.length, "total job links from", currentPage - 1, "pages");
     
-    // Random limit between 10 and 25 jobs for variety
-    const maxJobsToProcess = Math.floor(Math.random() * 16) + 10; // 10-25
+    // Random limit between 1 and 15 jobs for variety
+    const maxJobsToProcess = Math.floor(Math.random() * 15) + 1; // 1-15
     const jobsToProcess = jobLinks.slice(0, Math.min(maxJobsToProcess, jobLinks.length));
     console.log("Cron job: Processing", jobsToProcess.length, "jobs (random limit:", maxJobsToProcess, ")");
     
