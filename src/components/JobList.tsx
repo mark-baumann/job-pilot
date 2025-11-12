@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, MapPin, Building, ExternalLink, Settings } from "lucide-react";
+import { Briefcase, MapPin, Building, ExternalLink, Settings, History } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Job {
@@ -16,9 +16,10 @@ interface Job {
 interface JobListProps {
   onJobSelect: (job: Job) => void;
   onSourcesClick: () => void;
+  onActivityLogClick: () => void;
 }
 
-export default function JobList({ onJobSelect, onSourcesClick }: JobListProps) {
+export default function JobList({ onJobSelect, onSourcesClick, onActivityLogClick }: JobListProps) {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -45,25 +46,37 @@ export default function JobList({ onJobSelect, onSourcesClick }: JobListProps) {
   return (
     <Card className="w-full bg-white shadow-xl border border-blue-200 rounded-2xl text-black">
       <CardHeader className="pb-4">
-        <CardTitle className="flex items-center justify-between text-lg">
-          <div className="flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-primary" />
-            Job-Liste
-            {!isLoading && (
-              <Badge variant="secondary" className="ml-2">
-                {jobs.length} Treffer
-              </Badge>
-            )}
+        <CardTitle>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="text-lg font-semibold">Job-Liste</h3>
+              {!isLoading && (
+                <Badge variant="secondary" className="ml-2">
+                  {jobs.length} Treffer
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={onActivityLogClick}
+                className="text-white hover:text-white border-white hover:bg-white hover:text-primary mr-2"
+              >
+                <History className="w-4 h-4 mr-2" />
+                Aktivitätsprotokoll
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={onSourcesClick}
+                className="text-white hover:text-white border-white hover:bg-white hover:text-primary"
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Quellen verwalten
+              </Button>
+            </div>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={onSourcesClick}
-            className="text-white hover:text-white border-white hover:bg-white hover:text-primary"
-          >
-            <Settings className="w-4 h-4 mr-2" />
-            Quellen verwalten
-          </Button>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-0">

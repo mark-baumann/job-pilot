@@ -11,10 +11,56 @@ interface JobData {
   arbeitsort?: string;
 }
 
+async function uploadScreenshotToVercel(base64Screenshot: string): Promise<string | null> {
+  try {
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      console.log("Cron job: No BLOB_READ_WRITE_TOKEN, skipping screenshot upload");
+      return null;
+    }
+
+    // Convert base64 to buffer
+    const base64Data = base64Screenshot.replace(/^data:image\/png;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Upload to Vercel Blob
+    const blobResponse = await fetch('https://blob.vercel-storage.com/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
+        'Content-Type': 'image/png',
+        'x-api-version': '1',
+      },
+      body: buffer,
+    });
+
+    if (!blobResponse.ok) {
+      throw new Error(`Failed to upload screenshot: ${blobResponse.statusText}`);
+    }
+
+    const blobData = await blobResponse.json();
+    return blobData.url;
+  } catch (error) {
+    console.error('Failed to upload screenshot:', error);
+    return null;
+  }
+}
+
+async function saveActivityLog(pool: Pool, status: string, duration: number, message?: string, details?: any, screenshotUrl?: string) {
+  try {
+    await pool.query(`
+      INSERT INTO activity_logs (status, duration, message, details, screenshot_url)
+      VALUES ($1, $2, $3, $4, $5)
+    `, [status, duration, message, details ? JSON.stringify(details) : null, screenshotUrl]);
+  } catch (error) {
+    console.error('Failed to save activity log:', error);
+  }
+}
+
 export default async function handler(
   request: VercelRequest,
   response: VercelResponse
 ) {
+  const startTime = Date.now();
   console.log("Cron job: Starting...");
   
   if (
@@ -35,6 +81,19 @@ export default async function handler(
     
     const pool = new Pool({ connectionString, max: 1 });
 
+    // Create activity_logs table if it doesn't exist
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        status VARCHAR(20) NOT NULL,
+        duration INTEGER NOT NULL,
+        message TEXT,
+        details JSONB,
+        screenshot_url TEXT
+      );
+    `);
+
     console.log("Cron job: Getting random active job link...");
     // Get random active job link
     const linksResult = await pool.query(
@@ -45,6 +104,8 @@ export default async function handler(
 
     if (linksResult.rows.length === 0) {
       await pool.end();
+      const duration = Date.now() - startTime;
+      await saveActivityLog(pool, 'ERROR', duration, 'No active job links found');
       console.log("Cron job: No active links found");
       return response.status(400).json({ success: false, error: "No active job links found" });
     }
@@ -73,9 +134,14 @@ export default async function handler(
     console.log("Cron job: Navigating to:", selectedLink.url);
     await page.goto(selectedLink.url, { waitUntil: 'networkidle' });
     
-    // Take screenshot for debugging
+    // Take screenshot for debugging and upload to Vercel Blob
     const screenshot = await page.screenshot({ encoding: 'base64' });
     console.log("Cron job: Page screenshot taken (length:", screenshot.length, ")");
+    
+    const screenshotUrl = await uploadScreenshotToVercel(`data:image/png;base64,${screenshot}`);
+    if (screenshotUrl) {
+      console.log("Cron job: Screenshot uploaded to:", screenshotUrl);
+    }
     
     // Get page title and URL to confirm we're on the right page
     const pageTitle = await page.title();
@@ -198,6 +264,17 @@ export default async function handler(
     await pool.end();
     console.log("Cron job: Saved", savedJobs, "new jobs to database");
     
+    const duration = Date.now() - startTime;
+    const details = {
+      scrapedLink: selectedLink,
+      jobsFound: jobs.length,
+      jobsSaved: savedJobs,
+      pagesProcessed: currentPage - 1,
+      jobLinksFound: jobLinks.length
+    };
+    
+    await saveActivityLog(pool, 'SUCCESS', duration, 'Successfully scraped jobs', details, screenshotUrl || undefined);
+    
     response.status(200).json({ 
       success: true, 
       scrapedLink: selectedLink,
@@ -209,12 +286,26 @@ export default async function handler(
   } catch (error) {
     console.error("Cron handler error:", error);
     console.error("Cron handler error stack:", (error as Error).stack);
+    
+    const duration = Date.now() - startTime;
+    // Try to save error log even if pool is not available
+    try {
+      const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+      if (connectionString) {
+        const pool = new Pool({ connectionString, max: 1 });
+        await saveActivityLog(pool, 'ERROR', duration, (error as Error).message, { stack: (error as Error).stack });
+        await pool.end();
+      }
+    } catch (logError) {
+      console.error('Failed to save error log:', logError);
+    }
+    
     response
       .status(500)
       .json({ 
         success: false, 
         error: (error as Error).message,
-        stack: (error as Error).stack 
+        stack: (error as Error).stack
       });
   }
 }

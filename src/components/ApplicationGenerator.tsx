@@ -31,6 +31,7 @@ import { ResumeAnalysisService } from "../services/resumeAnalysisService";
 import CoverLetterEditor from "./CoverLetterEditor";
 import SourcesManager from "./SourcesManager";
 import JobList from "./JobList";
+import ActivityLog from "./ActivityLog";
 
 
 
@@ -574,6 +575,7 @@ Mit freundlichen Grüßen`;
   const [sendCv, setSendCv] = useState(true);
   const [isEmailSending, setIsEmailSending] = useState(false);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [showActivityLog, setShowActivityLog] = useState(false);
   // Persist: SMTP + Email settings (load on mount)
   useEffect(() => {
     try {
@@ -893,14 +895,21 @@ Mark Baumann`
 
         {/* Job List */}
         <JobList 
-          onJobSelect={handleJobSelect} 
-          onSourcesClick={() => setShowSourcesManager(true)}
-        />
+              onJobSelect={handleJobSelect} 
+              onSourcesClick={() => setShowSourcesManager(true)}
+              onActivityLogClick={() => setShowActivityLog(true)}
+            />
 
         {/* Sources Manager */}
         <SourcesManager 
           isOpen={showSourcesManager} 
           onClose={() => setShowSourcesManager(false)} 
+        />
+
+        {/* Activity Log */}
+        <ActivityLog 
+          isOpen={showActivityLog} 
+          onClose={() => setShowActivityLog(false)} 
         />
 
         {/* API Configuration */}
