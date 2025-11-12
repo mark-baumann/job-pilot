@@ -59,7 +59,7 @@ export default defineConfig({
       ]
     }),
     {
-      name: "custom-middlewares",
+      name: "custom-middlewares", 
       apply: "serve",
       configureServer(server) {
         // Dev-API: scrape-arbeitsagentur (SSE)
