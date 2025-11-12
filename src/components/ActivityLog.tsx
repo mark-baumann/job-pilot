@@ -14,7 +14,7 @@ interface ActivityLogProps {
 interface CronLog {
   id: string;
   createdAt: string;
-  status: "SUCCESS" | "ERROR" | "TIMEOUT";
+  status: "SUCCESS" | "ERROR" | "TIMEOUT" | "PROCESSING";
   duration: number;
   message?: string;
   details?: any;
@@ -53,6 +53,8 @@ export default function ActivityLog({ isOpen, onClose }: ActivityLogProps) {
         return <AlertCircle className="w-4 h-4 text-red-600" />;
       case 'TIMEOUT':
         return <Clock className="w-4 h-4 text-yellow-600" />;
+      case 'PROCESSING':
+        return <Loader className="w-4 h-4 text-blue-600 animate-spin" />;
       default:
         return <Loader className="w-4 h-4 text-gray-600" />;
     }
@@ -62,7 +64,8 @@ export default function ActivityLog({ isOpen, onClose }: ActivityLogProps) {
     const variants = {
       'SUCCESS': 'default',
       'ERROR': 'destructive',
-      'TIMEOUT': 'secondary'
+      'TIMEOUT': 'secondary',
+      'PROCESSING': 'secondary'
     } as const;
     
     return (

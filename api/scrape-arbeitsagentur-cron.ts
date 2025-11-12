@@ -34,13 +34,20 @@ async function enrichJobsInBackground(jobLinks: { link: string; title: string }[
     
     const pool = new Pool({ connectionString, max: 1 });
     
+    // Create browser with optimized settings for Vercel
     const browser = await playwrightChromium.launch({
-      args: chromium.args,
+      args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
       executablePath: await chromium.executablePath(),
       headless: true,
     });
 
     const page = await browser.newPage();
+    
+    // Optimize page for faster loading
+    await page.route('**/*.{png,jpg,jpeg,gif,svg,css,font}', route => route.abort());
+    await page.setViewportSize({ width: 1280, height: 720 });
+    
+    let enrichedCount = 0;
     
     for (let i = 0; i < jobLinks.length; i++) {
       const { link: absoluteLink, title: jobTitle } = jobLinks[i];
@@ -48,48 +55,112 @@ async function enrichJobsInBackground(jobLinks: { link: string; title: string }[
       try {
         console.log(`Background: Enriching job ${i + 1}/${jobLinks.length}: ${jobTitle}`);
         
-        await page.goto(absoluteLink, { waitUntil: "domcontentloaded", timeout: 15000 });
-        await page.waitForTimeout(500);
+        // Fast navigation with shorter timeout
+        await page.goto(absoluteLink, { 
+          waitUntil: "domcontentloaded", 
+          timeout: 15000 
+        });
+        
+        // Minimal wait for content to load
+        await page.waitForTimeout(300);
         
         let jobDescription = "";
         let firma = "";
         let arbeitsort = "";
         
-        // Extract job details from individual job page
-        try {
-          jobDescription = await page.locator('.stelle-beschreibung, .beschreibung, [data-testid="job-description"]').innerText().catch(() => "");
-        } catch {}
+        // Try multiple selectors for job description
+        const descriptionSelectors = [
+          '.stelle-beschreibung',
+          '.beschreibung', 
+          '[data-testid="job-description"]',
+          '.job-description',
+          '.description',
+          'div[data-automation-id="jobDescription"]',
+          '.jobad-description'
+        ];
         
-        try {
-          firma = await page.locator('.firma, .company-name, [data-testid="company-name"]').innerText().catch(() => "");
-        } catch {}
+        for (const selector of descriptionSelectors) {
+          try {
+            jobDescription = await page.locator(selector).first().innerText({ timeout: 1000 });
+            if (jobDescription.trim()) break;
+          } catch {}
+        }
         
-        try {
-          arbeitsort = await page.locator('.ort, .job-location, [data-testid="job-location"]').innerText().catch(() => "");
-        } catch {}
+        // Try multiple selectors for company
+        const companySelectors = [
+          '.firma',
+          '.company-name', 
+          '[data-testid="company-name"]',
+          '.company',
+          '[data-automation-id="companyName"]',
+          '.job-company'
+        ];
         
-        // Update job with details
+        for (const selector of companySelectors) {
+          try {
+            firma = await page.locator(selector).first().innerText({ timeout: 1000 });
+            if (firma.trim()) break;
+          } catch {}
+        }
+        
+        // Try multiple selectors for location
+        const locationSelectors = [
+          '.ort',
+          '.job-location',
+          '[data-testid="job-location"]', 
+          '.location',
+          '[data-automation-id="location"]',
+          '.job-location-text'
+        ];
+        
+        for (const selector of locationSelectors) {
+          try {
+            arbeitsort = await page.locator(selector).first().innerText({ timeout: 1000 });
+            if (arbeitsort.trim()) break;
+          } catch {}
+        }
+        
+        // Update job with details if we found any
         if (jobDescription || firma || arbeitsort) {
           await pool.query(
             `UPDATE jobs 
-             SET description = $1, firma = $2, arbeitsort = $3 
+             SET description = $1, firma = $2, arbeitsort = $3, updated_at = NOW()
              WHERE link = $4`,
-            [jobDescription, firma || null, arbeitsort || null, absoluteLink]
+            [jobDescription.trim() || null, firma?.trim() || null, arbeitsort?.trim() || null, absoluteLink]
           );
-          console.log(`Background: Updated job with details: ${jobTitle}`);
+          enrichedCount++;
+          console.log(`Background: ✅ Enriched job with details: ${jobTitle}`);
+        } else {
+          console.log(`Background: ⚠️ No details found for: ${jobTitle}`);
         }
         
       } catch (e) {
-        console.log(`Background: Error enriching job ${jobTitle}:`, e instanceof Error ? e.message : String(e));
+        console.log(`Background: ❌ Error enriching job ${jobTitle}:`, e instanceof Error ? e.message : String(e));
       }
     }
     
     await browser.close();
     await pool.end();
-    console.log("Background enrichment: Completed");
+    
+    console.log(`Background enrichment: ✅ Completed - enriched ${enrichedCount}/${jobLinks.length} jobs`);
+    
+    // Log completion to activity logs
+    try {
+      const completionPool = new Pool({ connectionString, max: 1 });
+      await saveActivityLog(completionPool, 'SUCCESS', 0, `Background enrichment completed - ${enrichedCount}/${jobLinks.length} jobs enriched`);
+      await completionPool.end();
+    } catch {}
     
   } catch (error) {
     console.error('Background enrichment failed:', error);
+    
+    // Log error to activity logs
+    try {
+      const connectionString = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+      const errorPool = new Pool({ connectionString, max: 1 });
+      await saveActivityLog(errorPool, 'ERROR', 0, `Background enrichment failed: ${error instanceof Error ? error.message : String(error)}`);
+      await errorPool.end();
+    } catch {}
   }
 }
 
@@ -264,10 +335,12 @@ export default async function handler(
       jobsSaved: savedJobs,
       pagesProcessed: currentPage - 1,
       jobLinksFound: jobLinks.length,
-      mode: 'async'
+      mode: 'async',
+      backgroundEnrichment: 'started'
     };
     
-    await saveActivityLog(pool, 'SUCCESS', duration, 'Successfully scraped jobs (async mode)', details);
+    // Save "PROCESSING" log first
+    await saveActivityLog(pool, 'PROCESSING', duration, 'Quick-scrape completed, background enrichment started', details);
     
     await pool.end();
     
