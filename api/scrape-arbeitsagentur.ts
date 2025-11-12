@@ -132,7 +132,15 @@ async function scrapeAndPersist({ limitNew, onEvent }: {
 
       try {
         await page.goto(absoluteLink, { waitUntil: "domcontentloaded", timeout: 20000 });
-      } catch {}
+        onEvent({
+          type: "step",
+          log: `Navigiert zu: ${jobTitle}`,
+          screenshot: await page.screenshot({ type: 'png', encoding: 'base64' })
+        });
+      } catch (e) {
+        const error = e instanceof Error ? e.message : String(e);
+        onEvent({ type: "step", log: `Fehler beim Navigieren zu ${jobTitle}: ${error}` });
+      }
 
       await page.waitForTimeout(1200);
 

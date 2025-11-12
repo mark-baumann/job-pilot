@@ -14,6 +14,12 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
   const [jobs, setJobs] = useState<Job[]>([]);
   const [progress, setProgress] = useState<number>(0);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [scraperLogs, setScraperLogs] = useState<string[]>([]);
+  const [lastScreenshot, setLastScreenshot] = useState<string | null>(null);
+  const [newJobLinks, setNewJobLinks] = useState<Set<string>>(new Set());
+
+
+
 
   const [maxNew, setMaxNew] = useState<number>(5);
 
@@ -34,6 +40,8 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
     setIsRunning(true);
     setStatus("Verbinde zum Scraper...");
     setProgress(0);
+    setScraperLogs([]);
+    setLastScreenshot(null);
 
     try {
       const url = maxNew && maxNew > 0 ? `/api/scrape-arbeitsagentur?limit=${maxNew}` : "/api/scrape-arbeitsagentur";
@@ -44,6 +52,12 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
         try {
           const payload = JSON.parse(ev.data);
           if (payload.type === "step") {
+            if (payload.log) {
+              setScraperLogs(prev => [...prev, payload.log]);
+            }
+            if (payload.screenshot) {
+              setLastScreenshot(payload.screenshot);
+            }
             setStatus(payload.message);
             if (typeof payload.step === 'number') {
               const MAX_STEPS = 5;
@@ -56,6 +70,7 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
               const exists = prev.some(j => j.link === payload.data.link);
               return exists ? prev : [...prev, payload.data];
             });
+            setNewJobLinks(prev => new Set(prev).add(payload.data.link));
           } else if (payload.type === "complete") {
             setStatus(payload.message || "Scraping complete");
             setProgress(100);
@@ -137,8 +152,22 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
             </div>
           )}
 
+          {scraperLogs.length > 0 && (
+            <div className="space-y-2 p-3 border rounded-md bg-gray-50 max-h-48 overflow-y-auto">
+              <h5 className="text-xs font-semibold">Scraper Log:</h5>
+              <pre className="text-xs whitespace-pre-wrap font-mono">{scraperLogs.join('\n')}</pre>
+            </div>
+          )}
+
+          {lastScreenshot && (
+            <div className="space-y-2 p-3 border rounded-md bg-gray-50">
+              <h5 className="text-xs font-semibold">Letzter Screenshot:</h5>
+              <img src={`data:image/png;base64,${lastScreenshot}`} alt="Scraper Screenshot" className="border rounded-md" />
+            </div>
+          )}
+
           <div>
-            <h4 className="text-sm font-medium mb-2">Alle Jobs</h4>
+            <h4 className="text-sm font-medium mb-2">Alle Jobs (Treffer: {jobs.length})</h4>
             {/* Desktop/Tablette: Tabelle */}
             <div className="hidden md:block border rounded-md">
               <Table>
@@ -153,7 +182,11 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                 <TableBody>
                   {jobs.map((job, idx) => {
                     return (
-                      <TableRow key={job.link || idx} className="odd:bg-white even:bg-muted/30 hover:bg-accent/40 border-b">
+                      <TableRow 
+                        key={job.link || idx} 
+                        className={`odd:bg-white even:bg-muted/30 hover:bg-accent/40 border-b transition-colors duration-500 ${
+                          newJobLinks.has(job.link) ? 'bg-green-100' : ''
+                        }`}>
                         <TableCell className="font-semibold align-top break-words">
                           <div className="flex items-center gap-1">
                             <span>{job.title}</span>
@@ -182,7 +215,7 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                             <Button variant="default" size="sm" className="text-white hover:text-white w-20" onClick={() => onJobSelect(job)}>
                               Apply
                             </Button>
-                            <Button asChild variant="link" size="sm" className="p-0 h-auto">
+                            <Button asChild variant="default" size="sm" className="text-white hover:text-white w-20">
                               <a href={job.link} target="_blank" rel="noopener noreferrer">Öffnen</a>
                             </Button>
                           </div>
@@ -221,7 +254,7 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                       <Button variant="default" size="sm" className="text-white hover:text-white" onClick={() => onJobSelect(job)}>
                         Apply
                       </Button>
-                      <Button asChild variant="link" size="sm">
+                      <Button asChild variant="default" size="sm" className="text-white hover:text-white w-20">
                         <a href={job.link} target="_blank" rel="noopener noreferrer">Öffnen</a>
                       </Button>
                     </div>
