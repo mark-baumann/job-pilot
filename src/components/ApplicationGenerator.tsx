@@ -571,7 +571,6 @@ Mit freundlichen Grüßen`;
   const [sendPdf, setSendPdf] = useState(true);
   const [sendZeugnisse, setSendZeugnisse] = useState(true);
   const [sendCv, setSendCv] = useState(true);
-  const [useCompressedZeugnis, setUseCompressedZeugnis] = useState(false);
   const [isEmailSending, setIsEmailSending] = useState(false);
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   // Persist: SMTP + Email settings (load on mount)
@@ -810,38 +809,18 @@ Mark Baumann`
 
       if (sendZeugnisse) {
         try {
-          let zeugnisBlob: Blob | null = null;
-          let zeugnisFilename = '';
-          let zeugnisContentType = '';
-
-          if (useCompressedZeugnis) {
-            try {
-              const resp = await fetch('/zeugnisse_compressed.pdf');
-              if (resp.ok) {
-                zeugnisBlob = await resp.blob();
-                zeugnisFilename = 'Marks_Zeugnis_Compressed.pdf';
-                zeugnisContentType = zeugnisBlob.type || 'application/pdf';
-              }
-            } catch (e) {
-              console.error('Could not fetch compressed zeugnis', e);
-            }
-          } else {
-            try {
-              const resp = await fetch('/zeugnisse.pdf');
-              if (resp.ok) {
-                zeugnisBlob = await resp.blob();
-                zeugnisFilename = 'Marks_Zeugnis.pdf';
-                zeugnisContentType = zeugnisBlob.type || 'application/pdf';
-              }
-            } catch (e) {
-              console.error('Could not fetch zeugnis', e);
-            }
+          const resp = await fetch('/zeugnisse_compressed.pdf');
+          if (resp.ok) {
+            const zeugnisBlob = await resp.blob();
+            attachments.push({ 
+              filename: 'zeugnis.pdf', 
+              contentType: 'application/pdf', 
+              base64: await blobToBase64(zeugnisBlob) 
+            });
           }
-
-          if (zeugnisBlob) {
-            attachments.push({ filename: zeugnisFilename, contentType: zeugnisContentType, base64: await blobToBase64(zeugnisBlob) });
-          }
-        } catch (e) { console.error('Error attaching zeugnis:', e) }
+        } catch (e) { 
+          console.error('Error attaching zeugnis:', e) 
+        }
       }
 
       const subject = emailSubject || (titleInput ? `Bewerbung ${titleInput} - Mark Baumann` : "Bewerbung - Mark Baumann");
