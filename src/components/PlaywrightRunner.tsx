@@ -145,36 +145,44 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
               const maxH = 720; // cap height
               const computed = Math.min(maxH, Math.max(minH, headerHeight + jobs.length * rowHeight));
               return (
-                <ScrollArea className="border rounded-md" style={{ height: computed }}>
-                  <Table>
-                <TableHeader>
+            <ScrollArea className="h-[70vh] border rounded-md">
+              <Table>
+                <TableHeader className="sticky top-0 z-10 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/60">
                   <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Company</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Link</TableHead>
-                    <TableHead>Action</TableHead>
+                    <TableHead className="w-[22%]">Title</TableHead>
+                    <TableHead className="w-[14%]">Company</TableHead>
+                    <TableHead className="w-[14%]">Location</TableHead>
+                    <TableHead className="w-[38%]">Description</TableHead>
+                    <TableHead className="w-[6%]">Link</TableHead>
+                    <TableHead className="w-[6%]">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {jobs.map((job, idx) => {
                     const full = (job.description || "").replace(/\s+/g, " ").trim();
-                    const short = full.length > 220 ? full.slice(0, 220) + "…" : full;
+                    const short = full.length > 280 ? full.slice(0, 280) + "…" : full;
                     return (
-                      <TableRow key={job.link || idx} className="hover:bg-accent/40">
-                        <TableCell className="font-medium">{job.title}</TableCell>
-                        <TableCell>{job.firma}</TableCell>
-                        <TableCell>{job.arbeitsort}</TableCell>
-                        <TableCell title={full} className="align-top text-xs text-muted-foreground max-w-[520px]">
+                      <TableRow key={job.link || idx} className="odd:bg-white even:bg-muted/30 hover:bg-accent/40">
+                        <TableCell className="font-medium align-top break-words">
+                          {job.title}
+                          {job.firma && (
+                            <div className="text-[11px] text-muted-foreground">{job.firma} · {job.arbeitsort}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="align-top break-words">{job.firma}</TableCell>
+                        <TableCell className="align-top break-words">{job.arbeitsort}</TableCell>
+                        <TableCell
+                          title={full}
+                          className="align-top text-xs text-muted-foreground max-w-[720px] break-words whitespace-pre-wrap"
+                        >
                           {short || <span className="italic text-muted-foreground">(keine Beschreibung)</span>}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="align-top">
                           <Button asChild variant="link" size="sm">
                             <a href={job.link} target="_blank" rel="noopener noreferrer">Öffnen</a>
                           </Button>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="align-top">
                           <Button variant="outline" size="sm" onClick={() => onJobSelect(job)}>
                             Select
                           </Button>
@@ -183,8 +191,8 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                     );
                   })}
                 </TableBody>
-                            </div>
-                          </TableCell>
+              </Table>
+            </ScrollArea>
                         </TableRow>
                       ))}
                     </TableBody>
