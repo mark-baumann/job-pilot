@@ -13,6 +13,7 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
   const esRef = useRef<EventSource | null>(null);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [progress, setProgress] = useState<number>(0);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const [maxNew, setMaxNew] = useState<number>(5);
 
@@ -166,9 +167,21 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                         <TableCell className="align-top break-words">{job.arbeitsort}</TableCell>
                         <TableCell
                           title={full}
-                          className="align-top text-xs text-muted-foreground max-w-[720px] break-words whitespace-pre-wrap"
+                          className="align-top text-sm text-black max-w-[720px] break-words whitespace-pre-wrap"
                         >
-                          {short || <span className="italic text-muted-foreground">(keine Beschreibung)</span>}
+                          {(expanded[job.link] ? full : short) || <span className="italic text-muted-foreground">(keine Beschreibung)</span>}
+                          {full && full.length > short.length && (
+                            <div className="mt-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 px-2 text-black hover:text-black"
+                                onClick={() => setExpanded((prev) => ({ ...prev, [job.link]: !prev[job.link] }))}
+                              >
+                                {expanded[job.link] ? "Weniger" : "Mehr"}
+                              </Button>
+                            </div>
+                          )}
                         </TableCell>
                         <TableCell className="align-top">
                           <Button asChild variant="link" size="sm">
@@ -176,7 +189,7 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                           </Button>
                         </TableCell>
                         <TableCell className="align-top">
-                          <Button variant="outline" size="sm" onClick={() => onJobSelect(job)}>
+                          <Button variant="outline" size="sm" className="text-black hover:text-black" onClick={() => onJobSelect(job)}>
                             Select
                           </Button>
                         </TableCell>
