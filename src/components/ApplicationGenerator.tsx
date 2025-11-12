@@ -125,7 +125,7 @@ export default function ApplicationGenerator() {
 
   const loadCloudConvertKeys = async () => {
     try {
-      const response = await fetch('/api/keys/cloudconvert');
+      const response = await fetch('/api/cloudconvert');
       if (!response.ok) throw new Error('Failed to fetch keys');
       const data = await response.json();
       const keys = data.keys || [];
@@ -863,7 +863,7 @@ Mark Baumann`
                     if (selectedCloudConvertKeyIndex >= 0) {
                       const keyToDelete = cloudConvertApiKeys[selectedCloudConvertKeyIndex];
                       try {
-                        await fetch('/api/keys/cloudconvert', {
+                        await fetch('/api/cloudconvert', {
                           method: 'DELETE',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ id: keyToDelete.id }),
@@ -905,7 +905,7 @@ Mark Baumann`
                     const v = newCloudConvertKey.trim();
                     if (!v) return;
                     try {
-                      await fetch('/api/keys/cloudconvert', {
+                      await fetch('/api/cloudconvert', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ key: v }),
