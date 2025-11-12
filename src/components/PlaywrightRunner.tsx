@@ -156,7 +156,7 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                     const short = full.length > 280 ? full.slice(0, 280) + "…" : full;
                     return (
                       <React.Fragment key={job.link || idx}>
-                        <TableRow className="odd:bg-white even:bg-muted/30 hover:bg-accent/40">
+                        <TableRow className="odd:bg-white even:bg-muted/30 hover:bg-accent/40 border-t-2 border-muted">
                           <TableCell className="font-semibold align-top break-words">{job.title}</TableCell>
                           <TableCell className="align-top break-words">{job.firma}</TableCell>
                           <TableCell className="align-top break-words">{job.arbeitsort}</TableCell>
@@ -171,7 +171,7 @@ export const PlaywrightRunner: React.FC<{ onJobSelect: (job: Job) => void }> = (
                             </Button>
                           </TableCell>
                         </TableRow>
-                        <TableRow className="odd:bg-white even:bg-muted/30">
+                        <TableRow className="odd:bg-white even:bg-muted/30 border-b-2 border-muted">
                           <TableCell colSpan={5} className="pt-0 pb-3">
                             <div className="text-sm text-black whitespace-pre-wrap break-words">
                               {(expanded[job.link] ? full : short) || <span className="italic text-muted-foreground">(keine Beschreibung)</span>}
