@@ -73,35 +73,57 @@ export default async function handler(
     console.log("Cron job: Navigating to:", selectedLink.url);
     await page.goto(selectedLink.url, { waitUntil: 'networkidle' });
     
+    // Take screenshot for debugging
+    const screenshot = await page.screenshot({ encoding: 'base64' });
+    console.log("Cron job: Page screenshot taken (length:", screenshot.length, ")");
+    
+    // Get page title and URL to confirm we're on the right page
+    const pageTitle = await page.title();
+    const pageUrl = page.url();
+    console.log("Cron job: Page title:", pageTitle);
+    console.log("Cron job: Current URL:", pageUrl);
+    
     console.log("Cron job: Extracting job data...");
     const jobs = await page.evaluate(() => {
-      const jobElements = document.querySelectorAll('[data-testid="job-item"], .job-item, .job-list-item, article[data-href*="/jobs/"]');
+      const jobElements = document.querySelectorAll('.resultitem, .job-item, [data-href*="/jobsuche/"], .job-list-item');
       const extractedJobs: JobData[] = [];
       
-      jobElements.forEach((element) => {
+      console.log('Found job elements:', jobElements.length);
+      
+      jobElements.forEach((element, index) => {
         try {
-          const titleElement = element.querySelector('h3, h2, .job-title, [data-testid="job-title"]');
-          const linkElement = element.querySelector('a[href*="/jobs/"]');
-          const descriptionElement = element.querySelector('.job-description, p, .description');
-          const companyElement = element.querySelector('.company-name, [data-testid="company-name"]');
-          const locationElement = element.querySelector('.job-location, [data-testid="job-location"]');
+          // Try multiple selectors for title
+          const titleElement = element.querySelector('h3 a, h2 a, .titel a, .job-title a, [data-testid="job-title"] a, .resultitem-headline a') ||
+                             element.querySelector('h3, h2, .titel, .job-title, [data-testid="job-title"], .resultitem-headline');
           
-          if (titleElement && linkElement) {
-            const title = titleElement.textContent?.trim() || '';
-            const link = (linkElement as HTMLAnchorElement).href;
-            const description = descriptionElement?.textContent?.trim() || '';
-            const firma = companyElement?.textContent?.trim() || undefined;
-            const arbeitsort = locationElement?.textContent?.trim() || undefined;
-            
-            if (title && link) {
-              extractedJobs.push({
-                title,
-                description,
-                link,
-                firma,
-                arbeitsort
-              });
-            }
+          // Try multiple selectors for link
+          const linkElement = element.querySelector('a[href*="/jobsuche/"], a[href*="/job/"], .resultitem-headline a, .titel a');
+          
+          // Try multiple selectors for description
+          const descriptionElement = element.querySelector('.beschreibung, .job-description, p, .description, .resultitem-beschreibung');
+          
+          // Try multiple selectors for company
+          const companyElement = element.querySelector('.firma, .company-name, [data-testid="company-name"], .resultitem-firma');
+          
+          // Try multiple selectors for location
+          const locationElement = element.querySelector('.ort, .job-location, [data-testid="job-location"], .resultitem-ort');
+          
+          const title = titleElement?.textContent?.trim() || '';
+          const link = (linkElement as HTMLAnchorElement)?.href || '';
+          const description = descriptionElement?.textContent?.trim() || '';
+          const firma = companyElement?.textContent?.trim() || undefined;
+          const arbeitsort = locationElement?.textContent?.trim() || undefined;
+          
+          console.log(`Job ${index}: title="${title}", link="${link}"`);
+          
+          if (title && link) {
+            extractedJobs.push({
+              title,
+              description,
+              link,
+              firma,
+              arbeitsort
+            });
           }
         } catch (error) {
           console.warn('Error extracting job:', error);
