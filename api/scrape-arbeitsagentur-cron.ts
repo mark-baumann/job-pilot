@@ -194,7 +194,7 @@ export default async function handler(
         } catch {}
         
         try {
-          firma = await page.locator('.firma, .company-name, [data-testid="company-name"]').first().innerText({ timeout: 2000 }).catch(() => "");
+          firma = await page.locator('//*[@id="detail-kopfbereich-firma"]').first().innerText({ timeout: 2000 }).catch(() => "");
         } catch {}
         
         try {
