@@ -2,7 +2,8 @@
   "crons": [
     {
       "path": "/api/scrape-arbeitsagentur-cron",
-      "schedule": "0 6 * * *"
+      "schedule": "0 6 * * *",
+      "maxDuration": 180
     }
   ]
 }

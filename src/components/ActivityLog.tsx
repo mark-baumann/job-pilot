@@ -93,6 +93,7 @@ export default function ActivityLog({ isOpen, onClose }: ActivityLogProps) {
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
+    <Sheet key={isOpen ? 'open' : 'closed'} open={isOpen} onOpenChange={onClose}>
       <SheetContent className="w-[800px] overflow-y-auto">
         <SheetHeader>
           <SheetTitle className="flex items-center justify-between">
