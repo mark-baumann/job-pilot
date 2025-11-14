@@ -109,9 +109,7 @@ export default function ActivityLog({ isOpen, onClose }: ActivityLogProps) {
                 <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
                 Aktualisieren
               </Button>
-              <Button variant="ghost" size="sm" onClick={onClose}>
-                <X className="w-4 h-4" />
-              </Button>
+              
             </div>
           </SheetTitle>
         </SheetHeader>
