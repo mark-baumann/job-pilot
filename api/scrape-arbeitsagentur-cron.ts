@@ -167,10 +167,10 @@ export default async function handler(
     
     console.log("Cron job: Extracted", jobLinks.length, "total job links from", currentPage - 1, "pages");
     
-    // Random limit between 1 and 15 jobs for variety
-    const maxJobsToProcess = Math.floor(Math.random() * 15) + 1; // 1-15
+    // Random limit between 1 and 8 jobs for stability (avoid timeouts)
+    const maxJobsToProcess = Math.floor(Math.random() * 8) + 1; // 1-8
     const jobsToProcess = jobLinks.slice(0, Math.min(maxJobsToProcess, jobLinks.length));
-    console.log("Cron job: Processing", jobsToProcess.length, "jobs (random limit:", maxJobsToProcess, ")");
+    console.log("Cron job: Processing", jobsToProcess.length, "jobs (random limit:", maxJobsToProcess, ") - optimized for stability");
     
     const jobs: JobData[] = [];
     const addedJobs: any[] = []; // Track jobs that were actually added
@@ -181,20 +181,27 @@ export default async function handler(
       console.log(`Cron job: Processing job ${i + 1}/${jobsToProcess.length}: ${jobTitle}`);
       
       try {
-        await page.goto(absoluteLink, { waitUntil: "domcontentloaded", timeout: 8000 });
-        await page.waitForTimeout(100); // Minimal wait
+        await page.goto(absoluteLink, { 
+          waitUntil: "domcontentloaded", 
+          timeout: 5000 // Reduced from 8000ms for faster failure
+        }).catch(async (err) => {
+          console.log(`Cron job: Page load timeout for ${jobTitle}, skipping...`);
+          throw new Error('Page load timeout');
+        });
+        
+        await page.waitForTimeout(50); // Minimal wait
         
         let jobDescription = "";
         let firma = "";
         let arbeitsort = "";
         
-        // Extract job details using new XPath selectors
+        // Extract job details using new XPath selectors with shorter timeouts
         try {
-          jobDescription = await page.locator('//*[@id="detail-beschreibung-beschreibung"]').first().innerText({ timeout: 2000 }).catch(() => "");
+          jobDescription = await page.locator('//*[@id="detail-beschreibung-beschreibung"]').first().innerText({ timeout: 1000 }).catch(() => "");
         } catch {}
         
         try {
-          firma = await page.locator('//*[@id="detail-kopfbereich-firma"]').first().innerText({ timeout: 2000 }).catch(() => "");
+          firma = await page.locator('//*[@id="detail-kopfbereich-firma"]').first().innerText({ timeout: 1000 }).catch(() => "");
           // Clean up "Arbeitgeber:" prefix if present
           if (firma) {
             firma = firma.replace(/^Arbeitgeber:\s*/i, '').trim();
@@ -202,7 +209,7 @@ export default async function handler(
         } catch {}
         
         try {
-          arbeitsort = await page.locator('//*[@id="detail-kopfbereich-arbeitsort"]').first().innerText({ timeout: 2000 }).catch(() => "");
+          arbeitsort = await page.locator('//*[@id="detail-kopfbereich-arbeitsort"]').first().innerText({ timeout: 1000 }).catch(() => "");
         } catch {}
         
         // Only add job if it has a description (using new XPath)
