@@ -18,6 +18,7 @@ interface CronLog {
   duration: number;
   message?: string;
   details?: any;
+  screenshot?: string;
 }
 
 export default function ActivityLog({ isOpen, onClose }: ActivityLogProps) {
@@ -153,7 +154,7 @@ export default function ActivityLog({ isOpen, onClose }: ActivityLogProps) {
                       {log.message && (
                         <div className="mb-3">
                           <div className="text-sm font-medium mb-1">Nachricht:</div>
-                          <div className="text-sm bg-muted p-2 rounded">
+                          <div className="text-sm bg-muted p-2 rounded whitespace-pre-wrap">
                             {log.message}
                           </div>
                         </div>
