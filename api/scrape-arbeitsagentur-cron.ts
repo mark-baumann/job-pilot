@@ -173,6 +173,7 @@ export default async function handler(
     console.log("Cron job: Processing", jobsToProcess.length, "jobs (random limit:", maxJobsToProcess, ")");
     
     const jobs: JobData[] = [];
+    const addedJobs: any[] = []; // Track jobs that were actually added
     
     // Visit each job page to get details (synchronous mode)
     for (let i = 0; i < jobsToProcess.length; i++) {
@@ -187,28 +188,40 @@ export default async function handler(
         let firma = "";
         let arbeitsort = "";
         
-        // Extract job details from individual job page (ultra-fast)
+        // Extract job details using new XPath selectors
         try {
-          jobDescription = await page.locator('.stelle-beschreibung, .beschreibung, [data-testid="job-description"]').first().innerText({ timeout: 1000 }).catch(() => "");
+          jobDescription = await page.locator('//*[@id="detail-beschreibung-beschreibung"]').first().innerText({ timeout: 2000 }).catch(() => "");
         } catch {}
         
         try {
-          firma = await page.locator('.firma, .company-name, [data-testid="company-name"]').first().innerText({ timeout: 1000 }).catch(() => "");
+          firma = await page.locator('.firma, .company-name, [data-testid="company-name"]').first().innerText({ timeout: 2000 }).catch(() => "");
         } catch {}
         
         try {
-          arbeitsort = await page.locator('.ort, .job-location, [data-testid="job-location"]').first().innerText({ timeout: 1000 }).catch(() => "");
+          arbeitsort = await page.locator('//*[@id="detail-kopfbereich-arbeitsort"]').first().innerText({ timeout: 2000 }).catch(() => "");
         } catch {}
         
-        jobs.push({
-          title: jobTitle,
-          description: jobDescription,
-          link: absoluteLink,
-          firma: firma || undefined,
-          arbeitsort: arbeitsort || undefined
-        });
-        
-        console.log(`Cron job: Extracted job: ${jobTitle}`);
+        // Only add job if it has a description (using new XPath)
+        if (jobDescription && jobDescription.trim().length > 50) {
+          jobs.push({
+            title: jobTitle,
+            description: jobDescription,
+            link: absoluteLink,
+            firma: firma || undefined,
+            arbeitsort: arbeitsort || undefined
+          });
+          
+          addedJobs.push({
+            title: jobTitle,
+            link: absoluteLink,
+            firma: firma || undefined,
+            arbeitsort: arbeitsort || undefined
+          });
+          
+          console.log(`Cron job: ✅ Added job with description: ${jobTitle}`);
+        } else {
+          console.log(`Cron job: ❌ Skipped job - no description: ${jobTitle}`);
+        }
         
       } catch (e) {
         console.log(`Cron job: Error processing job ${jobTitle}:`, e instanceof Error ? e.message : String(e));
@@ -244,6 +257,8 @@ export default async function handler(
       pagesProcessed: currentPage - 1,
       jobLinksFound: jobLinks.length,
       jobsProcessed: jobsToProcess.length,
+      addedJobs: addedJobs, // Jobs that were actually added
+      skippedJobs: jobsToProcess.length - jobs.length, // Jobs without descriptions
       mode: 'synchronous'
     };
     
