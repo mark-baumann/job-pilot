@@ -113,7 +113,9 @@ export default function JobList({ onJobSelect, onSourcesClick, onActivityLogClic
                         {job.firma && (
                           <div className="flex items-center gap-2">
                             <Building className="w-4 h-4 text-gray-400" />
-                            <span className="font-medium">{job.firma}</span>
+                            <span className="font-medium">
+                              {job.firma.replace(/^Arbeitgeber:\s*/i, '').trim()}
+                            </span>
                           </div>
                         )}
                         {job.arbeitsort && (

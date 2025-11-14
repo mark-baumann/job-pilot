@@ -195,6 +195,10 @@ export default async function handler(
         
         try {
           firma = await page.locator('//*[@id="detail-kopfbereich-firma"]').first().innerText({ timeout: 2000 }).catch(() => "");
+          // Clean up "Arbeitgeber:" prefix if present
+          if (firma) {
+            firma = firma.replace(/^Arbeitgeber:\s*/i, '').trim();
+          }
         } catch {}
         
         try {
